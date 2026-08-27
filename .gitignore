@@ -43,3 +43,41 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# ---------------------------------------------------------------------------
+# Naamkaran additions
+# ---------------------------------------------------------------------------
+
+# Firebase CLI local state. hosting.*.cache is a per-machine deploy fingerprint
+# that changes on every deploy, so tracking it just creates noise and conflicts.
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# CocoaPods (regenerated from the Podfile)
+**/Pods/
+**/.symlinks/
+ios/Flutter/Flutter.podspec
+
+# Build artefacts that sometimes get produced outside /build
+*.apk
+*.aab
+*.ipa
+*.app.zip
+
+# Local tooling
+.vscode/settings.json
+
+# NOTE on Firebase config files:
+#   android/app/google-services.json
+#   lib/firebase_options.dart
+# These ARE committed on purpose. They contain the project id and client API
+# keys, which Firebase ships inside every published app and serves in plain text
+# from the deployed web bundle - they are identifiers, not secrets. Access is
+# controlled by firestore.rules plus Anonymous auth, not by hiding these values.
+# Ignoring them would also break the build, since firebase_bootstrap.dart
+# imports firebase_options.dart.
+#
+# If you fork this for your own Firebase project, replace both files by running
+# ./tools/setup_firebase.sh and flutterfire configure.
