@@ -28,59 +28,6 @@ and Firebase caps a record at 1 MB. At roughly 200 bytes a round, 500 uses about
 
 ---
 
-## Change how strict a tie is
-
-`lib/core/game_config.dart`
-
-```dart
-this.tieThreshold = 0.02,
-```
-
-Two words within 2% closeness count as a tie. Raise it for more ties, lower it for
-fewer.
-
-Don't go below about `0.001`. Squashing the dictionary numbers introduced a tiny
-error of `0.000057`, and a threshold near that size would make results depend on
-rounding noise rather than the words.
-
----
-
-## Change the word dictionary size
-
-```bash
-python3 tools/build_embeddings.py \
-  --input glove.6B.50d.txt \
-  --output assets/embeddings/glove50.nkem \
-  --limit 30000
-```
-
-Roughly 112 bytes per word, so:
-
-| Words | File size |
-| --- | --- |
-| 20,000 | 2.2 MB |
-| 30,000 | 3.4 MB |
-| 50,000 | 5.4 MB (current) |
-
-**Rebuild every version at the same time.** Phones and the website must have the
-identical file. If they differ, they'll score words differently, and since either
-device can be the one that records a round result, you'd get inconsistent history.
-Doc 04 explains why.
-
-Fewer words also means more "unknown word, scores 0" for players.
-
----
-
-## Change which words the app never suggests
-
-`lib/services/embeddings/glove_similarity.dart`, the `_unplayable` set.
-
-These are excluded from the practice opponent's choices and from the post-game
-"closest words" list. Players can still type them — this only affects suggestions
-the app makes itself.
-
-Add a word if the bot keeps playing something that feels like cheating.
-
 ---
 
 ## Change the colours
@@ -107,6 +54,23 @@ which was chosen to stay readable. Going much lower makes them fail contrast
 guidelines.
 
 ---
+
+## Change the desktop layout
+
+`lib/ui/layout.dart`
+
+```dart
+static const sidePanelBreakpoint = 900.0;   // when chat docks to the side
+static const contentMaxWidth = 560.0;       // reading width of the main column
+static const chatPanelWidth = 360.0;        // docked chat width
+```
+
+Lower `sidePanelBreakpoint` and tablets get the side-by-side layout too. Below
+roughly 800 it gets cramped — the game column and the chat start fighting for
+room.
+
+`contentMaxWidth` is a readability limit, not decoration. Much above 600 and the
+lines of text get tiring to scan.
 
 ## Change how long the reveal lasts
 

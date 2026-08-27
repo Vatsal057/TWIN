@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 /// Warm ink-and-marigold palette. The game is about words, so type carries the
 /// design: generous letter spacing, few borders, colour used only to mean
-/// something (who scored, whose turn).
+/// something (whose word is whose, whether you converged).
 class AppTheme {
   AppTheme._();
 

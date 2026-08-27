@@ -43,7 +43,86 @@ reading its fields.
 
 ---
 
-## The practice opponent played nonsense
+## "Could not join that room" for every failure
+
+**Looked like:** typing a code gave a vague "could not join that room", no matter
+what was actually wrong.
+
+**Cause:** all the helpful messages were being thrown from *inside* a Firestore
+transaction, and the plugin wraps anything thrown in there.
+
+`cloud_firestore_web` runs the transaction handler through
+`convertWebExceptions`, so a `BackendException` raised inside comes back out as an
+opaque `FirebaseException`. The error translator no longer recognised it and fell
+through to the generic fallback. Five different, useful messages — your own room,
+no such code, room full, game finished, network — all collapsed into one useless
+sentence.
+
+**Fix:** validate on a plain read *before* the transaction. The transaction now
+only guards against two people racing for the last seat, and raises nothing of its
+own.
+
+```dart
+final snapshot = await _guard(() => ref.get(), 'Could not reach that room.');
+if (!snapshot.exists) throw const BackendException('No room with that code...');
+// ... all the other checks, outside any transaction ...
+await _guard(() => _db.runTransaction((tx) async { /* append only */ }), ...);
+```
+
+The translator also now keeps the plugin's own message text for unrecognised
+codes, since that is the only clue left when something genuinely unexpected
+happens.
+
+**Lesson:** don't raise domain errors inside a Firestore transaction. Validate
+first, then transact. The transaction is for atomicity, not for argument
+checking.
+
+## Typing a room code just showed "waiting for opponent"
+
+**Looked like:** you type a valid code, the app navigates somewhere, and you land
+on the lobby waiting for someone who never arrives.
+
+**Actual cause:** you were joining **your own room**.
+
+`joinRoom` had a branch meant to handle reconnecting after a dropped connection:
+if you're already listed as a player, don't error, just carry on. Sensible. But it
+also caught the case where the host types their own code — you're already a player,
+so it did nothing at all and dropped you in the lobby with no explanation.
+
+The database made this obvious. Three rooms sat like this:
+
+```
+7W3N2  waiting  1 player
+HMSK7  waiting  1 player
+PU6YJ  waiting  1 player
+```
+
+All created by the same person, all stuck at one player.
+
+**Why it's easy to hit:** every player gets an anonymous ID tied to their install
+or browser, and **two tabs of the same browser share one ID.** So the natural way
+to test — create a room in one tab, join in another — looks exactly like the host
+joining their own room, because that's what it is.
+
+**Fix:** tell the two cases apart by whether the room is already full.
+
+```dart
+if (room.players.contains(_uid)) {
+  if (!room.isFull) {
+    throw const BackendException(
+      'This is your own room. Send the code to the other player — you '
+      'cannot be both players.',
+      code: 'own-room',
+    );
+  }
+  // genuine reconnect, carry on
+}
+```
+
+**To actually test two players:** use two different browsers, a normal plus a
+private window, or two devices.
+
+## The practice opponent played nonsense (historical)
 
 **Looked like:** the bot kept playing words like *along*, *across*, *around*,
 *basin*, *blown*.
@@ -72,6 +151,10 @@ searched it had a setting meant to say "only look at the most common 12,000 word
 
 **Lesson:** if a setting says "most common N", make sure the data is actually
 ordered by commonness.
+
+**No longer applicable.** The scoring system and its bundled word table were later
+removed when the game became purely collaborative. Kept here because the mistake
+— assuming an ordering the data didn't have — is an easy one to repeat.
 
 ---
 
@@ -145,6 +228,58 @@ Version 3.10.0 doesn't have the broken code, and 4.13.0 is the newest
 in and breaks the web build. Always run `./tools/build_web.sh` after touching them.
 
 ---
+
+## Website showed an old version after deploying
+
+**Looked like:** the deploy succeeded, the new code was definitely on the server,
+but the browser kept showing the previous build. Reloading didn't help.
+
+**Cause:** Flutter's web build ships a **service worker** — a script the browser
+installs that caches the whole app and serves it from disk before touching the
+network. Great for offline use, terrible for updates.
+
+The specific trap: when you deploy, the new worker installs but **the old one
+stays in charge until every tab of the site is closed.** So a reload, even a hard
+one, still gets the old app.
+
+**Fix, in two parts.**
+
+First, the service worker is no longer generated. `tools/build_web.sh` passes
+`--pwa-strategy=none`. This costs almost nothing here — the game needs the network
+to play anyway, and the 5 MB word table is still cached by the browser's ordinary
+HTTP cache.
+
+Second, and this is the part that's easy to miss: **deleting the worker is not
+enough.** A browser that already has the old one registered will keep using it
+forever. It serves the cached `index.html` from its own cache, so any cleanup
+script inside the page never runs.
+
+So instead of removing the file, it's replaced with a worker whose only job is to
+destroy itself — `tools/sw_killswitch.js`, staged over the build output. It takes
+over immediately, deletes every cache, unregisters, and reloads open tabs.
+
+It must keep the filename `flutter_service_worker.js`, because that's the URL
+browsers already have registered.
+
+**A second cause, found while fixing the first.** The cache headers were wrong
+too. `index.html` was being served with `max-age=3600` despite a rule for it,
+because the rule matched the path `/index.html` and browsers request `/`. Those
+are different paths as far as the header rules are concerned.
+
+`main.dart.js` had the same problem. Its filename never changes between builds, so
+an hour of caching means up to an hour of stale app.
+
+Now the entry points are `no-cache` and only genuinely stable files get long
+caching:
+
+| File | Cache |
+| --- | --- |
+| `/`, `index.html`, `main.dart.js`, bootstrap | `no-cache` |
+| Renderer (`canvaskit/`) | 1 week |
+
+**Lesson:** if a static host serves a stale page, check two things — a service
+worker, and whether your header rule matches the path the browser actually
+requests.
 
 ## Setup script stopped silently
 
@@ -233,6 +368,9 @@ APK, proving the plugin ran.
 | "Could not create a room" | Rules not deployed: `firebase deploy --only firestore:rules` |
 | Room codes work, links don't open the app | Signing key changed, `assetlinks.json` fingerprint stale |
 | Web build fails on `isA` | Firebase versions got bumped |
+| Website shows an old build after deploy | Service worker, or a header rule that doesn't match `/` |
 | Web deploy works, sign-in fails on custom domain | Domain not in Authentication → Authorized domains |
 | Both phones work but never see each other | Built from different Firebase projects |
 | Practice bot instead of your friend | App is in offline mode; see the first row |
+| Code accepted but nobody joins | You typed your own room's code, or you're testing in two tabs of one browser |
+| Vague "could not join that room" | Stale build — the app now names the actual reason |

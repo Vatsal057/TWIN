@@ -55,9 +55,9 @@ class RoomLauncher {
   }
 
   static void open(BuildContext context, String code) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => RoomPage(roomCode: code)),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => RoomPage(roomCode: code)));
   }
 
   static Future<void> _run(
@@ -101,7 +101,9 @@ class RoomLauncher {
       closeBarrier();
       // Show what actually went wrong. A bare "could not create a room" hides
       // whether it was the network, the session, or undeployed rules.
-      final message = error is BackendException ? error.message : '$onError\n$error';
+      final message = error is BackendException
+          ? error.message
+          : '$onError\n$error';
       messenger.showSnackBar(
         SnackBar(content: Text(message), duration: const Duration(seconds: 6)),
       );

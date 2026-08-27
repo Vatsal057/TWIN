@@ -22,9 +22,9 @@ enum ViewStage {
 /// a single [stage] for the UI to switch on.
 ///
 /// Round resolution is deliberately client-side and idempotent. Both clients
-/// notice `submittedBy.length == 2`, both compute the same outcome from the same
-/// bundled embeddings, and the backend's transaction lets exactly one write
-/// land. No server code needed, no trust placed in one device.
+/// notice `submittedBy.length == 2`, both compare the two words, and the
+/// backend's transaction lets exactly one write land. Since the rule is string
+/// equality the two can never disagree, so no server is needed to referee.
 class GameController extends ChangeNotifier {
   GameController({
     required GameBackend backend,
@@ -73,14 +73,9 @@ class GameController extends ChangeNotifier {
   String get opponentName => _room?.nameOf(opponentId) ?? 'Opponent';
   String get localName => _room?.nameOf(localPlayerId) ?? 'You';
 
-  int get myScore => _room?.scoreOf(localPlayerId) ?? 0;
-  int get opponentScore {
-    final id = opponentId;
-    return id == null ? 0 : (_room?.scoreOf(id) ?? 0);
-  }
-
   /// 1-based round the player is composing for.
   int get currentRound => _room?.currentRound ?? 1;
+
   /// Null when the game is unlimited.
   int? get maxRounds => _room?.config.maxRounds;
 
@@ -242,12 +237,9 @@ class GameController extends ChangeNotifier {
 
   Future<void> leave() => _backend.leaveRoom(_roomCode);
 
-  /// Every word played so far, used to keep post-game suggestions fresh.
-  Set<String> get playedWords => {
-    for (final r in history) ...[r.p1Word, r.p2Word],
-  };
-
-  double get convergence => _room == null ? 0 : _engine.convergenceScore(_room!);
+  /// Number of rounds it took, which is the only "score" a collaborative game
+  /// has: fewer is better, and it belongs to both players.
+  int get roundsPlayed => history.length;
 
   @override
   void dispose() {
@@ -256,4 +248,3 @@ class GameController extends ChangeNotifier {
     super.dispose();
   }
 }
-

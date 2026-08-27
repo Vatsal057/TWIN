@@ -48,7 +48,6 @@ class Room {
     required this.currentRound,
     required this.submittedBy,
     required this.rounds,
-    required this.scores,
     this.finishReason,
     this.createdAt,
     this.updatedAt,
@@ -78,7 +77,6 @@ class Room {
   final List<String> submittedBy;
 
   final List<GameRound> rounds;
-  final Map<String, int> scores;
   final FinishReason? finishReason;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -115,8 +113,6 @@ class Room {
     return playerNames[playerId] ?? 'Player';
   }
 
-  int scoreOf(String playerId) => scores[playerId] ?? 0;
-
   /// True once the current round has both submissions and is ready to resolve.
   bool get isReadyToReveal =>
       isFull && submittedBy.length >= 2 && rounds.length < currentRound;
@@ -144,7 +140,6 @@ class Room {
     'currentRound': currentRound,
     'submittedBy': submittedBy,
     'rounds': rounds.map((r) => r.toMap()).toList(),
-    'scores': scores,
     'finishReason': finishReason?.wireName,
     'rematchOf': rematchOf,
     'rematchRoomCode': rematchRoomCode,
@@ -161,7 +156,9 @@ class Room {
         (k, v) => MapEntry(k.toString(), v?.toString() ?? 'Player'),
       ),
       status: RoomStatusCodec.fromWire(map['status']),
-      config: GameConfig.fromMap((map['config'] as Map?)?.cast<String, Object?>()),
+      config: GameConfig.fromMap(
+        (map['config'] as Map?)?.cast<String, Object?>(),
+      ),
       currentRound: (map['currentRound'] as num?)?.toInt() ?? 1,
       submittedBy: ((map['submittedBy'] as List?) ?? const [])
           .whereType<String>()
@@ -170,9 +167,6 @@ class Room {
           .whereType<Map>()
           .map((m) => GameRound.fromMap(m.cast<String, Object?>()))
           .toList(growable: false),
-      scores: ((map['scores'] as Map?) ?? const {}).map(
-        (k, v) => MapEntry(k.toString(), (v as num?)?.toInt() ?? 0),
-      ),
       finishReason: FinishReasonCodec.fromWire(map['finishReason']),
       rematchOf: map['rematchOf'] as String?,
       rematchRoomCode: map['rematchRoomCode'] as String?,
@@ -187,7 +181,6 @@ class Room {
     int? currentRound,
     List<String>? submittedBy,
     List<GameRound>? rounds,
-    Map<String, int>? scores,
     FinishReason? finishReason,
     String? rematchRoomCode,
   }) {
@@ -201,7 +194,6 @@ class Room {
       currentRound: currentRound ?? this.currentRound,
       submittedBy: submittedBy ?? this.submittedBy,
       rounds: rounds ?? this.rounds,
-      scores: scores ?? this.scores,
       finishReason: finishReason ?? this.finishReason,
       createdAt: createdAt,
       updatedAt: updatedAt,

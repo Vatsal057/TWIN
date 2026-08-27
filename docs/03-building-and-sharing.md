@@ -168,28 +168,33 @@ Actual first visit, after compression:
 | --- | --- |
 | App code | 0.8 MB |
 | Graphics engine (one) | 1.5–2.7 MB |
-| Word dictionary | 4.9 MB |
 
-So roughly 7–8 MB, once. After that the browser caches it — the dictionary is
-served with a one-year cache instruction, because its contents never change.
+So roughly 2–3.5 MB, then cached.
 
-The dictionary barely compresses (5.35 MB → 4.93 MB). Those squashed numbers are
-close to random from a compressor's point of view, so there's nothing to squeeze.
+This used to be 7–8 MB. Removing the scoring system removed a bundled 5 MB word
+table with it, which was two thirds of the download.
 
-### Don't shrink the dictionary for web only
+### No service worker, on purpose
 
-It's the obvious optimisation and it would break the game.
+The build passes `--pwa-strategy=none`, so there's no offline caching layer. This
+is deliberate: Flutter's service worker keeps serving the previous build after a
+deploy until every tab is closed, which makes updates unpredictable.
 
-Both players' apps calculate the round result themselves and one of them writes it
-down. That only works because they both get the same answer. Give the web version
-a smaller dictionary and it'll score words differently from the phone version —
-sometimes giving 0 for a word the phone knows. Then the result depends on which
-device happened to write first.
+`tools/sw_killswitch.js` is staged over the build output under the original
+filename. It removes any worker a browser already has, then reloads the tab. Leave
+it in place — it's harmless once a browser has run it, and removing it would strand
+anyone who hasn't visited since.
 
-If web load time is a real problem, shrink it for **everyone** by lowering
-`--limit` in `tools/build_embeddings.py` and rebuilding every version together.
+Cache headers matter as much as the worker. Entry points are `no-cache`:
 
----
+| File | Cache |
+| --- | --- |
+| `/`, `index.html`, `main.dart.js`, bootstrap | `no-cache` |
+| Renderer (`canvaskit/`) | 1 week |
+
+`main.dart.js` needs `no-cache` because its filename never changes between builds.
+And `/` needs its own header rule — a rule for `/index.html` does not match a
+request for the root.
 
 ## Using your own domain
 

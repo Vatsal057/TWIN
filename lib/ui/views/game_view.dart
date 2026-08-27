@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../../core/word_utils.dart';
 import '../../models/game_round.dart';
 import '../../models/room.dart';
-import '../../state/app_session.dart';
 import '../../state/chat_controller.dart';
 import '../../state/game_controller.dart';
 import '../app_theme.dart';
@@ -14,7 +13,7 @@ import '../widgets/chat_panel.dart';
 import '../widgets/chat_side_panel.dart';
 import '../widgets/reveal_overlay.dart';
 import '../widgets/round_history.dart';
-import '../widgets/score_header.dart';
+import '../widgets/round_header.dart';
 import '../widgets/section_label.dart';
 import '../widgets/word_composer.dart';
 
@@ -35,7 +34,6 @@ class GameView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final game = context.watch<GameController>();
-    final session = context.read<AppSession>();
     final room = game.room;
     if (room == null) return const SizedBox.shrink();
 
@@ -69,14 +67,12 @@ class GameView extends StatelessWidget {
       body: Layout.hasRoomForSideChat(context)
           ? _WideLayout(
               game: game,
-              session: session,
               room: room,
               localIsP1: localIsP1,
               reveal: reveal,
             )
           : _NarrowLayout(
               game: game,
-              session: session,
               room: room,
               localIsP1: localIsP1,
               reveal: reveal,
@@ -89,14 +85,12 @@ class GameView extends StatelessWidget {
 class _WideLayout extends StatelessWidget {
   const _WideLayout({
     required this.game,
-    required this.session,
     required this.room,
     required this.localIsP1,
     required this.reveal,
   });
 
   final GameController game;
-  final AppSession session;
   final Room room;
   final bool localIsP1;
   final GameRound? reveal;
@@ -114,7 +108,6 @@ class _WideLayout extends StatelessWidget {
                   child: PageShell(
                     child: _GameColumn(
                       game: game,
-                      session: session,
                       room: room,
                       localIsP1: localIsP1,
                       bottomPadding: 32,
@@ -145,14 +138,12 @@ class _WideLayout extends StatelessWidget {
 class _NarrowLayout extends StatelessWidget {
   const _NarrowLayout({
     required this.game,
-    required this.session,
     required this.room,
     required this.localIsP1,
     required this.reveal,
   });
 
   final GameController game;
-  final AppSession session;
   final Room room;
   final bool localIsP1;
   final GameRound? reveal;
@@ -167,7 +158,6 @@ class _NarrowLayout extends StatelessWidget {
             child: PageShell(
               child: _GameColumn(
                 game: game,
-                session: session,
                 room: room,
                 localIsP1: localIsP1,
                 bottomPadding: ChatPanel.reservedHeight(context) + 28,
@@ -201,10 +191,8 @@ class _Reveal extends StatelessWidget {
   Widget build(BuildContext context) {
     return RevealOverlay(
       round: round,
-      p1Id: room.p1Id,
       p1Name: room.nameOf(room.p1Id),
       p2Name: room.nameOf(room.p2Id),
-      localPlayerId: game.localPlayerId,
       onDismiss: () {
         // Only the bottom sheet can be closed; the docked panel stays open.
         if (!Layout.hasRoomForSideChat(context)) {
@@ -220,14 +208,12 @@ class _Reveal extends StatelessWidget {
 class _GameColumn extends StatelessWidget {
   const _GameColumn({
     required this.game,
-    required this.session,
     required this.room,
     required this.localIsP1,
     required this.bottomPadding,
   });
 
   final GameController game;
-  final AppSession session;
   final Room room;
   final bool localIsP1;
   final double bottomPadding;
@@ -238,11 +224,9 @@ class _GameColumn extends StatelessWidget {
     return ListView(
       padding: EdgeInsets.fromLTRB(20, 8, 20, bottomPadding),
       children: [
-        ScoreHeader(
+        RoundHeader(
           localName: game.localName,
           opponentName: game.opponentName,
-          localScore: game.myScore,
-          opponentScore: game.opponentScore,
           localIsPlayerOne: localIsP1,
           round: room.currentRound,
           maxRounds: room.config.maxRounds,
@@ -253,7 +237,7 @@ class _GameColumn extends StatelessWidget {
         const SizedBox(height: 22),
         _Prompt(game: game, localIsP1: localIsP1),
         const SizedBox(height: 22),
-        _Turn(game: game, session: session),
+        _Turn(game: game),
         if (game.errorMessage != null) ...[
           const SizedBox(height: 14),
           _ErrorNote(message: game.errorMessage!),
@@ -302,7 +286,7 @@ class _Prompt extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             Text(
-              'Round one sets the starting pair. Nothing is scored, and neither '
+              'Round one sets the starting pair. Neither '
               'of you sees the other word until you have both committed.',
               textAlign: TextAlign.center,
               style: TextStyle(
@@ -326,10 +310,9 @@ class _Prompt extends StatelessWidget {
 
 /// Composer, or the waiting state once this player has committed.
 class _Turn extends StatelessWidget {
-  const _Turn({required this.game, required this.session});
+  const _Turn({required this.game});
 
   final GameController game;
-  final AppSession session;
 
   @override
   Widget build(BuildContext context) {
@@ -337,7 +320,6 @@ class _Turn extends StatelessWidget {
       ViewStage.waitingForPlayers => const _WaitingForOpponentToJoin(),
       ViewStage.waitingForOpponent => _Committed(game: game),
       _ => WordComposer(
-        similarity: session.similarity,
         enabled: true,
         isSubmitting: game.isSubmitting,
         onSubmit: game.submitWord,

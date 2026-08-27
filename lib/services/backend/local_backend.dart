@@ -10,7 +10,6 @@ import '../../models/chat_message.dart';
 import '../../models/friend.dart';
 import '../../models/game_invite.dart';
 import '../../models/room.dart';
-import '../embeddings/glove_similarity.dart';
 import '../room_code.dart';
 import 'game_backend.dart';
 
@@ -18,13 +17,11 @@ import 'game_backend.dart';
 ///
 /// It implements the same [GameBackend] contract as [FirestoreBackend] and
 /// stands in for the second player, so the full round loop — private
-/// submissions, simultaneous reveal, midpoint scoring, convergence — is
+/// submissions, simultaneous reveal, convergence — is
 /// playable and inspectable without any cloud setup. It does **not** sync
 /// across devices; real two-player games need the Firestore backend.
 class LocalBackend implements GameBackend {
-  LocalBackend({required GloveSimilarity similarity, String displayName = 'You'})
-    : _similarity = similarity,
-      _displayName = displayName;
+  LocalBackend({String displayName = 'You'}) : _displayName = displayName;
 
   static const botId = 'local-bot';
   static const botName = 'Practice Bot';
@@ -44,7 +41,6 @@ class LocalBackend implements GameBackend {
     'shadow',
   ];
 
-  final GloveSimilarity _similarity;
   final _random = Random();
 
   String _displayName;
@@ -77,7 +73,8 @@ class LocalBackend implements GameBackend {
   @override
   Future<void> initialize() async {
     _prefs = await SharedPreferences.getInstance();
-    _uid = _prefs?.getString('local_uid') ?? 'local-${_random.nextInt(1 << 32)}';
+    _uid =
+        _prefs?.getString('local_uid') ?? 'local-${_random.nextInt(1 << 32)}';
     await _prefs?.setString('local_uid', _uid);
 
     final raw = _prefs?.getString('local_friends');
@@ -129,7 +126,6 @@ class LocalBackend implements GameBackend {
       currentRound: 1,
       submittedBy: const [],
       rounds: const [],
-      scores: {_uid: 0},
       rematchOf: rematchOf,
       createdAt: DateTime.now(),
     );
@@ -152,14 +148,22 @@ class LocalBackend implements GameBackend {
         'Configure Firebase to play over the internet.',
       );
     }
-    if (existing.players.contains(_uid)) return existing;
+    if (existing.players.contains(_uid)) {
+      if (!existing.isFull) {
+        throw const BackendException(
+          'This is your own room. Send the code to the other player — you '
+          'cannot be both players.',
+          code: 'own-room',
+        );
+      }
+      return existing;
+    }
     if (existing.isFull) {
       throw const BackendException('That room already has two players.');
     }
     final joined = existing.copyWith(
       players: [...existing.players, _uid],
       playerNames: {...existing.playerNames, _uid: _displayName},
-      scores: {...existing.scores, _uid: 0},
       status: RoomStatus.active,
     );
     _publish(joined);
@@ -180,7 +184,8 @@ class LocalBackend implements GameBackend {
   }
 
   @override
-  Future<Room?> fetchRoom(String code) async => _rooms[RoomCode.normalize(code)];
+  Future<Room?> fetchRoom(String code) async =>
+      _rooms[RoomCode.normalize(code)];
 
   @override
   Future<void> submitWord({
@@ -191,9 +196,7 @@ class LocalBackend implements GameBackend {
     final room = _rooms[code];
     if (room == null) return;
     (_submissions[code] ??= {}).putIfAbsent(roundIndex, () => {})[_uid] = word;
-    _publish(
-      room.copyWith(submittedBy: {...room.submittedBy, _uid}.toList()),
-    );
+    _publish(room.copyWith(submittedBy: {...room.submittedBy, _uid}.toList()));
 
     // The bot answers after a beat so the "waiting for opponent" state is real.
     _schedule(
@@ -233,7 +236,6 @@ class LocalBackend implements GameBackend {
     _publish(
       room.copyWith(
         rounds: [...room.rounds, resolution.round],
-        scores: resolution.scores,
         status: resolution.status,
         currentRound: resolution.nextRound,
         submittedBy: const [],
@@ -373,7 +375,6 @@ class LocalBackend implements GameBackend {
       room.copyWith(
         players: [...room.players, botId],
         playerNames: {...room.playerNames, botId: botName},
-        scores: {...room.scores, botId: 0},
         status: RoomStatus.active,
       ),
     );
@@ -390,40 +391,42 @@ class LocalBackend implements GameBackend {
     if (room.hasSubmitted(botId)) return;
     if (!room.players.contains(botId)) return;
 
-    final word = _botWord(room);
+    final word = _botWord(room, humanId: _uid);
     (_submissions[code] ??= {}).putIfAbsent(roundIndex, () => {})[botId] = word;
-    _publish(
-      room.copyWith(submittedBy: {...room.submittedBy, botId}.toList()),
-    );
+    _publish(room.copyWith(submittedBy: {...room.submittedBy, botId}.toList()));
   }
 
-  /// Round 1 is a random seed. After that the bot aims at the midpoint of the
-  /// previous pair, picking from the top handful rather than always the single
-  /// best match so it stays beatable.
-  String _botWord(Room room) {
+  /// A plausible partner, not a clever one.
+  ///
+  /// Round 1 is a random seed word. After that the bot behaves like a
+  /// cooperative human: with a chance that grows every round it plays back the
+  /// word *you* just used, trying to meet you where you are. So if you hold a
+  /// word steady, the game converges. Otherwise it offers another seed word.
+  ///
+  /// There is no cleverness available here by design — the app ships no word
+  /// list or meaning model, so a bot cannot reason about which words are
+  /// "between" two others. This is practice mode; real games are against people.
+  String _botWord(Room room, {required String humanId}) {
     final previous = room.lastRound;
     if (previous == null) {
       return _seedWords[_random.nextInt(_seedWords.length)];
     }
 
+    final yourLastWord = previous.wordFor(humanId, p1Id: room.p1Id);
+
+    // Round 2: 1 in 3. Round 5: 2 in 3. Converges without being instant.
+    final convergePressure = min(0.85, 0.15 * room.rounds.length + 0.15);
+    if (yourLastWord.isNotEmpty && _random.nextDouble() < convergePressure) {
+      return normalizeWord(yourLastWord);
+    }
+
     final used = <String>{
       for (final r in room.rounds) ...[r.p1Word, r.p2Word],
     };
-    final candidates = _similarity.nearestToMidpoint(
-      previous.p1Word,
-      previous.p2Word,
-      count: 6,
-      exclude: used,
-    );
-    if (candidates.isEmpty) {
-      final fallback = _seedWords.where((w) => !used.contains(w)).toList();
-      return fallback.isEmpty
-          ? _seedWords[_random.nextInt(_seedWords.length)]
-          : fallback[_random.nextInt(fallback.length)];
-    }
-    // Bias towards the closest options without being perfectly optimal.
-    final pick = min(candidates.length - 1, _random.nextInt(3));
-    return normalizeWord(candidates[pick]);
+    final fresh = _seedWords.where((w) => !used.contains(w)).toList();
+    return fresh.isEmpty
+        ? normalizeWord(yourLastWord.isEmpty ? _seedWords.first : yourLastWord)
+        : fresh[_random.nextInt(fresh.length)];
   }
 
   // -------------------------------------------------------------- plumbing

@@ -49,7 +49,7 @@ class AnchorPair extends StatelessWidget {
           ),
           const SizedBox(height: 18),
           Text(
-            'find the word in between',
+            'now both aim for something in between',
             style: TextStyle(
               fontSize: 11.5,
               letterSpacing: 1.4,

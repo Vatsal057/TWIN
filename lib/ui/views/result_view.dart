@@ -3,18 +3,20 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/word_utils.dart';
-import '../../models/game_round.dart';
 import '../../models/room.dart';
-import '../../services/embeddings/glove_similarity.dart';
 import '../../state/app_session.dart';
 import '../../state/game_controller.dart';
 import '../app_theme.dart';
+import '../layout.dart';
 import '../room_launcher.dart';
 import '../widgets/round_history.dart';
 import '../widgets/section_label.dart';
 
-/// The sync screen. Leads with whether the two of you landed on the same word,
-/// then the round count and the score breakdown, then the full history.
+/// The sync screen.
+///
+/// Collaborative, so there is no winner and no score breakdown. Either the two
+/// of you landed on the same word or you didn't, and the number that matters is
+/// how many rounds it took — a result you share.
 class ResultView extends StatelessWidget {
   const ResultView({super.key});
 
@@ -42,35 +44,25 @@ class ResultView extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
             children: [
               _Headline(
-              converged: converged,
-              abandoned: abandoned,
-              word: converged ? finalRound?.p1Word : null,
-              rounds: room.rounds.length,
-              convergence: game.convergence,
-            ),
-            const SizedBox(height: 28),
-            const SectionLabel('Score'),
-            const SizedBox(height: 12),
-            _ScoreBreakdown(game: game, room: room),
-            const SizedBox(height: 28),
-            const SectionLabel('Every round'),
-            const SizedBox(height: 12),
-            RoundHistory(
-              rounds: room.rounds,
-              p1Id: room.p1Id,
-              localPlayerId: game.localPlayerId,
-            ),
-            if (!converged && finalRound != null) ...[
-              const SizedBox(height: 24),
-              _NearMiss(
-                round: finalRound,
-                played: game.playedWords,
-                similarity: context.read<AppSession>().similarity,
+                converged: converged,
+                abandoned: abandoned,
+                word: converged ? finalRound?.p1Word : null,
+                rounds: room.rounds.length,
               ),
+              const SizedBox(height: 24),
+              _Players(game: game, room: room),
+              const SizedBox(height: 28),
+              const SectionLabel('Every round'),
+              const SizedBox(height: 12),
+              RoundHistory(
+                rounds: room.rounds,
+                p1Id: room.p1Id,
+                localPlayerId: game.localPlayerId,
+              ),
+              const SizedBox(height: 32),
+              _Actions(game: game, room: room),
             ],
-            const SizedBox(height: 32),
-            _Actions(game: game, room: room),
-          ],
+          ),
         ),
       ),
     );
@@ -83,20 +75,20 @@ class _Headline extends StatelessWidget {
     required this.abandoned,
     required this.word,
     required this.rounds,
-    required this.convergence,
   });
 
   final bool converged;
   final bool abandoned;
   final String? word;
   final int rounds;
-  final double convergence;
 
   @override
   Widget build(BuildContext context) {
     final color = converged
         ? AppTheme.converged
-        : (abandoned ? AppTheme.parchment.withValues(alpha: 0.5) : AppTheme.seed);
+        : (abandoned
+              ? AppTheme.parchment.withValues(alpha: 0.5)
+              : AppTheme.seed);
 
     final title = converged
         ? 'In sync'
@@ -106,7 +98,7 @@ class _Headline extends StatelessWidget {
         ? 'You both said the same word.'
         : (abandoned
               ? 'Someone left before you converged.'
-              : 'You closed the gap to ${(convergence * 100).round()}%.');
+              : 'You ran out of rounds before converging.');
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 34),
@@ -140,6 +132,7 @@ class _Headline extends StatelessWidget {
             const SizedBox(height: 14),
             Text(
               titleCaseWord(word!),
+              textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: 38,
                 fontWeight: FontWeight.w300,
@@ -155,23 +148,23 @@ class _Headline extends StatelessWidget {
             style: TextStyle(
               fontSize: 13.5,
               height: 1.5,
-              color: AppTheme.parchment.withValues(alpha: 0.62),
+              color: AppTheme.parchment.withValues(alpha: 0.7),
             ),
           ),
           const SizedBox(height: 20),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
             decoration: BoxDecoration(
               color: AppTheme.ink.withValues(alpha: 0.4),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              rounds == 1 ? '1 round' : '$rounds rounds',
+              rounds == 1 ? 'in 1 round' : 'in $rounds rounds',
               style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w600,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
                 letterSpacing: 0.8,
-                color: AppTheme.parchment.withValues(alpha: 0.8),
+                color: AppTheme.parchment.withValues(alpha: 0.85),
               ),
             ),
           ),
@@ -181,8 +174,9 @@ class _Headline extends StatelessWidget {
   }
 }
 
-class _ScoreBreakdown extends StatelessWidget {
-  const _ScoreBreakdown({required this.game, required this.room});
+/// Both names side by side. No numbers — the result belongs to the pair.
+class _Players extends StatelessWidget {
+  const _Players({required this.game, required this.room});
 
   final GameController game;
   final Room room;
@@ -190,146 +184,45 @@ class _ScoreBreakdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final localIsP1 = game.localPlayerId == room.p1Id;
-    final mine = game.myScore;
-    final theirs = game.opponentScore;
-    final scoredRounds = room.rounds.where((r) => r.isScored).length;
-
-    return Column(
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: _ScoreCard(
-                name: game.localName,
-                score: mine,
-                color: AppTheme.colorForSlot(localIsP1),
-                leading: mine > theirs,
-              ),
+        Flexible(
+          child: Text(
+            game.localName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.colorForSlot(localIsP1),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _ScoreCard(
-                name: game.opponentName,
-                score: theirs,
-                color: AppTheme.colorForSlot(!localIsP1),
-                leading: theirs > mine,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Text(
-          scoredRounds == 0
-              ? 'No scored rounds — round one is always a free opening.'
-              : '$scoredRounds scored ${scoredRounds == 1 ? 'round' : 'rounds'} '
-                    '(round one is never scored).',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 12,
-            color: AppTheme.parchment.withValues(alpha: 0.6),
           ),
         ),
-      ],
-    );
-  }
-}
-
-class _ScoreCard extends StatelessWidget {
-  const _ScoreCard({
-    required this.name,
-    required this.score,
-    required this.color,
-    required this.leading,
-  });
-
-  final String name;
-  final int score;
-  final Color color;
-  final bool leading;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-      decoration: BoxDecoration(
-        color: AppTheme.inkCard,
-        borderRadius: BorderRadius.circular(16),
-        border: leading
-            ? Border.all(color: color.withValues(alpha: 0.45))
-            : null,
-      ),
-      child: Column(
-        children: [
-          Text(
-            name,
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Text(
+            '+',
+            style: TextStyle(
+              fontSize: 15,
+              color: AppTheme.parchment.withValues(alpha: 0.5),
+            ),
+          ),
+        ),
+        Flexible(
+          child: Text(
+            game.opponentName,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              fontSize: 12.5,
-              color: AppTheme.parchment.withValues(alpha: 0.65),
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.colorForSlot(!localIsP1),
             ),
           ),
-          const SizedBox(height: 6),
-          Text(
-            '$score',
-            style: TextStyle(
-              fontSize: 34,
-              fontWeight: FontWeight.w700,
-              height: 1.1,
-              color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Post-game insight: the words that actually sat closest to the final
-/// midpoint. Only shown here, never during play.
-class _NearMiss extends StatelessWidget {
-  const _NearMiss({
-    required this.round,
-    required this.played,
-    required this.similarity,
-  });
-
-  final GameRound round;
-  final Set<String> played;
-  final GloveSimilarity similarity;
-
-  @override
-  Widget build(BuildContext context) {
-    final closest = similarity.nearestToMidpoint(
-      round.p1Word,
-      round.p2Word,
-      count: 3,
-      exclude: played,
-    );
-    if (closest.isEmpty) return const SizedBox.shrink();
-
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppTheme.inkRaised,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SectionLabel('Where you were heading'),
-          const SizedBox(height: 12),
-          Text(
-            'Closest words to your final midpoint: '
-            '${closest.map(titleCaseWord).join(', ')}.',
-            style: TextStyle(
-              fontSize: 13,
-              height: 1.5,
-              color: AppTheme.parchment.withValues(alpha: 0.62),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -369,7 +262,7 @@ class _Actions extends StatelessWidget {
               RoomLauncher.open(context, fresh.code);
             },
             icon: const Icon(Icons.replay_rounded),
-            label: const Text('Rematch'),
+            label: const Text('Play again'),
           ),
         const SizedBox(height: 12),
         OutlinedButton.icon(
@@ -391,14 +284,15 @@ class _Actions extends StatelessWidget {
     final buffer = StringBuffer('Naamkaran — ');
     if (room.converged && last != null) {
       buffer.writeln(
-        'we converged on "${titleCaseWord(last.p1Word)}" '
-        'in ${room.rounds.length} rounds.',
+        '${game.localName} and ${game.opponentName} converged on '
+        '"${titleCaseWord(last.p1Word)}" in ${room.rounds.length} rounds.',
       );
     } else {
-      buffer.writeln('${room.rounds.length} rounds, no convergence.');
+      buffer.writeln(
+        '${game.localName} and ${game.opponentName} played '
+        '${room.rounds.length} rounds without converging.',
+      );
     }
-    buffer.writeln('${game.localName} ${game.myScore} — '
-        '${game.opponentScore} ${game.opponentName}');
     buffer.writeln();
     for (final round in room.rounds) {
       buffer.writeln(

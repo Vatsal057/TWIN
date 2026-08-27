@@ -36,10 +36,8 @@ class _RoomPageState extends State<RoomPage> {
       engine: session.engine,
       roomCode: widget.roomCode,
     )..start();
-    _chat = ChatController(
-      backend: session.backend,
-      roomCode: widget.roomCode,
-    )..start();
+    _chat = ChatController(backend: session.backend, roomCode: widget.roomCode)
+      ..start();
   }
 
   @override

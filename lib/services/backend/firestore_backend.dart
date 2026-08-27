@@ -42,9 +42,11 @@ class FirestoreBackend implements GameBackend {
   @override
   String get displayName => _displayName;
 
-  CollectionReference<Map<String, dynamic>> get _rooms => _db.collection('rooms');
+  CollectionReference<Map<String, dynamic>> get _rooms =>
+      _db.collection('rooms');
 
-  DocumentReference<Map<String, dynamic>> _room(String code) => _rooms.doc(code);
+  DocumentReference<Map<String, dynamic>> _room(String code) =>
+      _rooms.doc(code);
 
   CollectionReference<Map<String, dynamic>> _submissions(String code) =>
       _room(code).collection('submissions');
@@ -80,7 +82,13 @@ class FirestoreBackend implements GameBackend {
         'failed-precondition' =>
           'Firestore is not ready for this request. It may still be '
               'provisioning, or an index is missing.',
-        _ => '$fallback (${error.code})',
+        // Keep the plugin's own text: for anything unrecognised it is the only
+        // clue about what actually went wrong.
+        _ => [
+          fallback,
+          if (error.message != null && error.message!.isNotEmpty) error.message,
+          '(${error.code})',
+        ].join(' '),
       };
       return BackendException(message, code: error.code);
     }
@@ -141,26 +149,25 @@ class FirestoreBackend implements GameBackend {
       final ref = _room(code);
       final created = await _guard(
         () => _db.runTransaction<bool>((tx) async {
-        final snap = await tx.get(ref);
-        if (snap.exists) return false;
-        tx.set(ref, {
-          'code': code,
-          'hostId': _uid,
-          'players': [_uid],
-          'playerNames': {_uid: _displayName},
-          'status': RoomStatus.waiting.wireName,
-          'config': config.toMap(),
-          'currentRound': 1,
-          'submittedBy': <String>[],
-          'rounds': <Map<String, Object?>>[],
-          'scores': {_uid: 0},
-          'finishReason': null,
-          'rematchOf': rematchOf,
-          'rematchRoomCode': null,
-          'createdAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-        return true;
+          final snap = await tx.get(ref);
+          if (snap.exists) return false;
+          tx.set(ref, {
+            'code': code,
+            'hostId': _uid,
+            'players': [_uid],
+            'playerNames': {_uid: _displayName},
+            'status': RoomStatus.waiting.wireName,
+            'config': config.toMap(),
+            'currentRound': 1,
+            'submittedBy': <String>[],
+            'rounds': <Map<String, Object?>>[],
+            'finishReason': null,
+            'rematchOf': rematchOf,
+            'rematchRoomCode': null,
+            'createdAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+          return true;
         }),
         'Could not create a room.',
       );
@@ -184,44 +191,100 @@ class FirestoreBackend implements GameBackend {
     }
 
     final ref = _room(code);
-    await _guard(() => _db.runTransaction((tx) async {
-      final snap = await tx.get(ref);
-      if (!snap.exists) {
-        throw const BackendException('No room with that code.');
-      }
-      final room = Room.fromMap(code, snap.data()!);
 
-      // Rejoining after a reconnect is not an error.
-      if (room.players.contains(_uid)) {
-        tx.update(ref, {
+    // Every reason a join can legitimately fail is checked here, on a plain
+    // read, *before* the transaction.
+    //
+    // This is not just tidiness. Anything thrown inside `runTransaction` gets
+    // wrapped by the plugin — cloud_firestore_web runs the handler through
+    // convertWebExceptions — so a BackendException raised in there comes back
+    // out as an opaque FirebaseException. Every specific message below used to
+    // reach the player as a useless "Could not join that room."
+    final snapshot = await _guard(
+      () => ref.get(),
+      'Could not reach that room.',
+    );
+    if (!snapshot.exists) {
+      throw const BackendException(
+        'No room with that code. Check the letters and try again.',
+        code: 'not-found',
+      );
+    }
+    final room = Room.fromMap(code, snapshot.data()!);
+
+    if (room.players.contains(_uid)) {
+      // Reconnecting to a game already in progress is fine. Typing your own
+      // code into "Join room" is not.
+      //
+      // Two tabs of one browser share the same anonymous id, so this is exactly
+      // what happens when someone tries to play both sides alone.
+      if (!room.isFull) {
+        throw const BackendException(
+          'This is your own room. Send the code to the other player — you '
+          'cannot be both players.',
+          code: 'own-room',
+        );
+      }
+      await _guard(
+        () => ref.update({
           'playerNames.$_uid': _displayName,
           'updatedAt': FieldValue.serverTimestamp(),
+        }),
+        'Could not rejoin that room.',
+      );
+      final rejoined = await fetchRoom(code);
+      if (rejoined == null) {
+        throw const BackendException('Could not load that room.');
+      }
+      return rejoined;
+    }
+
+    if (room.isFull) {
+      throw const BackendException(
+        'That room already has two players.',
+        code: 'full',
+      );
+    }
+    if (room.status == RoomStatus.finished) {
+      throw const BackendException(
+        'That game has already finished. Ask for a new code.',
+        code: 'finished',
+      );
+    }
+
+    // The transaction now only guards against two people racing for the last
+    // seat, and deliberately raises nothing of its own.
+    await _guard(
+      () => _db.runTransaction((tx) async {
+        final fresh = await tx.get(ref);
+        if (!fresh.exists) return;
+        final current = Room.fromMap(code, fresh.data()!);
+        if (current.players.contains(_uid) || current.isFull) return;
+
+        tx.update(ref, {
+          'players': FieldValue.arrayUnion([_uid]),
+          'playerNames.$_uid': _displayName,
+          // Both clients are listening; this is the flip that moves them into
+          // the game at the same moment.
+          'status': RoomStatus.active.wireName,
+          'updatedAt': FieldValue.serverTimestamp(),
         });
-        return;
-      }
-      if (room.isFull) {
-        throw const BackendException('That room already has two players.');
-      }
-      if (room.status == RoomStatus.finished) {
-        throw const BackendException('That game has already finished.');
-      }
+      }),
+      'Could not join that room.',
+    );
 
-      tx.update(ref, {
-        'players': FieldValue.arrayUnion([_uid]),
-        'playerNames.$_uid': _displayName,
-        'scores.$_uid': 0,
-        // Both clients are listening; this is the flip that moves them into the
-        // game at the same moment.
-        'status': RoomStatus.active.wireName,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-    }), 'Could not join that room.');
-
-    final room = await fetchRoom(code);
-    if (room == null) {
+    final joined = await fetchRoom(code);
+    if (joined == null) {
       throw const BackendException('Could not load that room.');
     }
-    return room;
+    if (!joined.players.contains(_uid)) {
+      // Lost the race for the second seat.
+      throw const BackendException(
+        'Someone else just took the second seat in that room.',
+        code: 'full',
+      );
+    }
+    return joined;
   }
 
   @override
@@ -311,8 +374,8 @@ class FirestoreBackend implements GameBackend {
       final fresh = Room.fromMap(code, snap.data()!);
 
       // Both clients race to commit; whoever loses sees the round already
-      // present and backs out. Scoring is deterministic from the shared
-      // embedding asset, so either winner produces the same history.
+      // present and backs out. The outcome is plain string equality, so either
+      // winner writes identical history.
       if (fresh.rounds.length >= roundIndex) return;
 
       final resolution = resolve(fresh, words.p1Word, words.p2Word);
@@ -323,7 +386,6 @@ class FirestoreBackend implements GameBackend {
 
       tx.update(ref, {
         'rounds': history,
-        'scores': resolution.scores,
         'status': resolution.status.wireName,
         'currentRound': resolution.nextRound,
         'submittedBy': <String>[],
@@ -372,42 +434,34 @@ class FirestoreBackend implements GameBackend {
 
   @override
   Stream<List<ChatMessage>> watchMessages(String code) {
-    return _messages(code)
-        .orderBy('sentAt')
-        .limit(500)
-        .snapshots()
-        .map((snap) {
-          final messages = snap.docs.map((doc) {
-            final data = doc.data();
-            return ChatMessage(
-              id: doc.id,
-              senderId: (data['senderId'] as String?) ?? '',
-              text: (data['text'] as String?) ?? '',
-              sentAt:
-                  _toDate(data['sentAt']) ?? _toDate(data['clientSentAt']),
-              pending: doc.metadata.hasPendingWrites,
-            );
-          }).toList();
+    return _messages(code).orderBy('sentAt').limit(500).snapshots().map((snap) {
+      final messages = snap.docs.map((doc) {
+        final data = doc.data();
+        return ChatMessage(
+          id: doc.id,
+          senderId: (data['senderId'] as String?) ?? '',
+          text: (data['text'] as String?) ?? '',
+          sentAt: _toDate(data['sentAt']) ?? _toDate(data['clientSentAt']),
+          pending: doc.metadata.hasPendingWrites,
+        );
+      }).toList();
 
-          // Messages awaiting a server timestamp fall back to the client clock
-          // so the stream never jumps around as writes settle.
-          messages.sort((a, b) {
-            final at = a.sentAt;
-            final bt = b.sentAt;
-            if (at == null && bt == null) return 0;
-            if (at == null) return 1;
-            if (bt == null) return -1;
-            return at.compareTo(bt);
-          });
-          return messages;
-        });
+      // Messages awaiting a server timestamp fall back to the client clock
+      // so the stream never jumps around as writes settle.
+      messages.sort((a, b) {
+        final at = a.sentAt;
+        final bt = b.sentAt;
+        if (at == null && bt == null) return 0;
+        if (at == null) return 1;
+        if (bt == null) return -1;
+        return at.compareTo(bt);
+      });
+      return messages;
+    });
   }
 
   @override
-  Future<void> sendMessage({
-    required String code,
-    required String text,
-  }) async {
+  Future<void> sendMessage({required String code, required String text}) async {
     _requireAuth();
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;

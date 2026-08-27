@@ -24,7 +24,18 @@ info() { printf '  %s\n' "$1"; }
 die()  { printf '\033[31m  ✗ %s\033[0m\n' "$1" >&2; exit 1; }
 
 bold "Building web (host: $WEB_HOST)"
-flutter build web --release --dart-define=NAAMKARAN_WEB_HOST="$WEB_HOST" \
+# --pwa-strategy=none disables the service worker on purpose.
+#
+# Flutter's default service worker caches the whole app and keeps serving the old
+# build after a deploy: the new worker installs but the previous one stays in
+# charge until every tab of the site is closed. A reload, even a hard one, shows
+# stale UI. That is a bad trade for a game that needs the network to play anyway.
+#
+# Losing it costs almost nothing. The 5 MB word table is still cached by the
+# browser's normal HTTP cache (firebase.json marks it immutable for a year).
+flutter build web --release \
+  --pwa-strategy=none \
+  --dart-define=NAAMKARAN_WEB_HOST="$WEB_HOST" \
   || die "web build failed"
 ok "build/web"
 
@@ -38,11 +49,25 @@ else
   info "no web/well-known/assetlinks.json, skipping"
 fi
 
-SIZE="$(du -sh build/web | awk '{print $1}')"
-ASSET="$(find build/web -name '*.nkem' -exec du -h {} + 2>/dev/null | awk '{print $1}' | head -1)"
+bold "Staging service worker kill switch"
+# --pwa-strategy=none leaves an empty flutter_service_worker.js behind. An empty
+# worker stops caching, but it does not evict the old one: by default a new
+# worker waits until every tab closes before taking over, so returning visitors
+# stay on a stale build.
+#
+# Overwrite it with a worker that deletes the caches, unregisters itself and
+# reloads open tabs. It must keep this exact filename, because that is the URL
+# browsers already have registered. Cannot live in web/ — Flutter overwrites it.
+if [[ -f tools/sw_killswitch.js ]]; then
+  cp tools/sw_killswitch.js build/web/flutter_service_worker.js
+  ok "kill switch staged ($(wc -c < build/web/flutter_service_worker.js | tr -d ' ') bytes)"
+else
+  die "tools/sw_killswitch.js missing"
+fi
+
 bold "Size"
-info "total build/web: $SIZE"
-info "embedding asset: ${ASSET:-not found}"
+info "total build/web: $(du -sh build/web | awk '{print $1}')"
+info "main.dart.js gzipped: $(gzip -c build/web/main.dart.js | wc -c | awk '{printf "%.2f MB", $1/1048576}')"
 
 if [[ "${1:-}" == "--deploy" ]]; then
   bold "Deploying to Firebase Hosting"

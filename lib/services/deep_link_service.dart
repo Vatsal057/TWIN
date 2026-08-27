@@ -55,13 +55,10 @@ class DeepLinkService {
     }
 
     try {
-      _sub = _appLinks.uriLinkStream.listen(
-        (uri) {
-          final code = parseRoomCode(uri);
-          if (code != null) _codes.add(code);
-        },
-        onError: (Object e) => debugPrint('deep link stream error: $e'),
-      );
+      _sub = _appLinks.uriLinkStream.listen((uri) {
+        final code = parseRoomCode(uri);
+        if (code != null) _codes.add(code);
+      }, onError: (Object e) => debugPrint('deep link stream error: $e'));
       final initial = await _appLinks.getInitialLink();
       return initial == null ? null : parseRoomCode(initial);
     } catch (e) {

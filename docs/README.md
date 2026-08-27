@@ -14,9 +14,11 @@ to what you need.
 
 ## The 30-second version
 
-Naamkaran is a word game for two people. You both type a word. Then you both try
-to name a word "in the middle" of the last two. You keep going until you both
-type the same word.
+Naamkaran is a word game for two people, played **on the same side**. You both
+type a word. Then you both try to name a word "in the middle" of the last two. You
+keep going until you both type the same word.
+
+No points, no winner. You find each other or you don't.
 
 It works over the internet, so the two players can be anywhere.
 

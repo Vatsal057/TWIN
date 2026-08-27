@@ -75,10 +75,6 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-  # Bundled GloVe 6B 50d subset (50k tokens, int16 quantized) used for offline
-  # round scoring. Regenerate with tools/build_embeddings.py.
-  assets:
-    - assets/embeddings/glove50.nkem
 
   # To add assets to your application, add an assets section, like this:
   # assets:

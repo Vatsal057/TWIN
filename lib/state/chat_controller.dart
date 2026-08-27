@@ -34,16 +34,18 @@ class ChatController extends ChangeNotifier {
   }
 
   void start() {
-    _sub = _backend.watchMessages(_roomCode).listen(
-      (messages) {
-        _messages = messages;
-        if (_panelOpen) _readCount = _messages.length;
-        notifyListeners();
-      },
-      onError: (Object error) {
-        debugPrint('chat stream error: $error');
-      },
-    );
+    _sub = _backend
+        .watchMessages(_roomCode)
+        .listen(
+          (messages) {
+            _messages = messages;
+            if (_panelOpen) _readCount = _messages.length;
+            notifyListeners();
+          },
+          onError: (Object error) {
+            debugPrint('chat stream error: $error');
+          },
+        );
   }
 
   void togglePanel() => setPanelOpen(!_panelOpen);

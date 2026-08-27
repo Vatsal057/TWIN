@@ -5,7 +5,7 @@
   },
   "hosting": {
     "public": "build/web",
-    "//": "Do not add '**/.*' here: it would exclude /.well-known/assetlinks.json and silently break Android App Links.",
+    "//": "Do not add '**/.*' to ignore: it would exclude /.well-known/assetlinks.json and silently break Android App Links.",
     "ignore": ["firebase.json", "**/node_modules/**", "**/.DS_Store"],
     "rewrites": [
       {
@@ -15,25 +15,49 @@
     ],
     "headers": [
       {
-        "source": "/.well-known/assetlinks.json",
-        "headers": [{ "key": "Content-Type", "value": "application/json" }]
-      },
-      {
-        "source": "**/*.nkem",
-        "headers": [
-          {
-            "key": "Cache-Control",
-            "value": "public, max-age=31536000, immutable"
-          }
-        ]
+        "//": "Entry points have fixed filenames, so a cached copy means a stale app. Firebase defaults to max-age=3600, which is too long to wait after a deploy. Note '/' needs its own rule: a rule for /index.html does not match a request for the root.",
+        "source": "/",
+        "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
       },
       {
         "source": "/index.html",
         "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
       },
       {
+        "source": "**/*.html",
+        "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+      },
+      {
+        "source": "/main.dart.js",
+        "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+      },
+      {
+        "source": "/flutter_bootstrap.js",
+        "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+      },
+      {
+        "source": "/flutter.js",
+        "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+      },
+      {
+        "source": "/version.json",
+        "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+      },
+      {
+        "//": "Must be revalidated every time or browsers holding the old worker never learn to remove it.",
         "source": "/flutter_service_worker.js",
         "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+      },
+      {
+        "//": "Renderer binaries change only with a Flutter SDK upgrade. A week keeps repeat visits fast without pinning a stale engine for a year.",
+        "source": "/canvaskit/**",
+        "headers": [
+          { "key": "Cache-Control", "value": "public, max-age=604800" }
+        ]
+      },
+      {
+        "source": "/.well-known/assetlinks.json",
+        "headers": [{ "key": "Content-Type", "value": "application/json" }]
       }
     ]
   }

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'app_theme.dart';
 import 'widgets/brand_mark.dart';
 
-/// Shown while the embedding table loads and the backend signs in.
+/// Shown while the backend signs in.
 class BootScreen extends StatelessWidget {
   const BootScreen({super.key, required this.step, this.error, this.onRetry});
 
@@ -56,7 +56,10 @@ class BootScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 28),
                 if (onRetry != null)
-                  OutlinedButton(onPressed: onRetry, child: const Text('Retry')),
+                  OutlinedButton(
+                    onPressed: onRetry,
+                    child: const Text('Retry'),
+                  ),
               ],
             ],
           ),

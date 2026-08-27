@@ -1,102 +1,95 @@
 # 01 — What this game is
 
-Naamkaran is a two-player word game. The goal is to end up saying the **same
-word** as the other person.
+Naamkaran is a word game for two people. You are **on the same side**. The goal is
+to both say the same word.
+
+There are no points, no winner, no loser. You either find each other or you
+don't.
 
 ## How a game goes
 
 **Round 1.** You both type a word in secret. Neither of you can see the other's
-word until you've both locked yours in. Nobody scores this round. It just gives
-the game a starting pair.
+word until you've both locked yours in.
 
 Then both words appear at the same time.
 
 Say you typed **fire** and your friend typed **water**.
 
-**Round 2 onward.** Now you both try to name a word that sits *between* the last
-two. Between fire and water, you might say **steam**. Your friend might say
-**hammer**.
+**Round 2.** Now you both try to name a word that sits *between* those two. You
+might think "steam". Your friend might think "steam" too — and that's the game
+over, you're in sync.
 
-The app measures how close each word is to the "middle" of fire and water:
+More likely you say **steam** and they say **cloud**. So now you have a new pair,
+and you both aim between steam and cloud. Maybe you both land on **mist**.
 
-- steam → 63% close
-- hammer → 41% close
+**The game ends** the moment your two words match. That's the win, and it belongs
+to both of you.
 
-Steam wins, so you get 1 point.
+## What decides whether you converge
 
-Now steam and hammer become the new pair, and you go again.
+You do. Nothing else.
 
-**The game ends** the moment you both type the same word. That's the win. There's
-no points target — points are just a side-score showing who aimed better along
-the way.
+The app doesn't judge your words, doesn't rank them, doesn't tell you who was
+closer. It only checks one thing: are the two words the same? Everything else is
+you two reading each other.
+
+That's the whole game, and it's an old one — people have played this with no app
+at all, sitting across a table.
+
+### Words are compared loosely
+
+Before comparing, the app tidies both words the same way: trims spaces, lowercases
+them, collapses double spaces. So these all count as a match:
+
+- `Steam` and `steam`
+- `  mist ` and `mist`
+- `ICE CREAM` and `ice cream`
+
+What doesn't match is a different word. `run` and `running` are not the same, and
+neither are `mist` and `mists`. If you want to give yourselves more slack, that's
+a house rule you can agree in the chat.
 
 ## Round limits
 
 By default there's **no limit**. You play until you converge.
 
 When you create a room you can set a cap instead: 5, 10, 15 or 25 rounds. If you
-hit the cap without matching, the game ends and shows how close you got.
+hit the cap without matching, the game ends and shows how many rounds you played.
 
-There's a hidden hard stop at 500 rounds. You'll never reach it — it exists for a
+There's a hard stop at 500 rounds. You'll never reach it — it exists for a
 technical reason explained in doc 04.
 
-## What "in the middle" actually means
+## The only number
 
-This is the interesting part.
-
-Every word in the app's dictionary has a list of 50 numbers attached to it. Those
-numbers describe the word's meaning. Words with similar meanings have similar
-numbers. This isn't something we invented — it's a well-known technique, and we
-use a public dataset called **GloVe** made by Stanford.
-
-So the app:
-
-1. Looks up the 50 numbers for **fire**
-2. Looks up the 50 numbers for **water**
-3. Averages them, giving the "midpoint" — a meaning halfway between the two
-4. Compares your word's numbers to that midpoint
-5. Whoever's closer wins the round
-
-That's why *steam* beats *hammer*. Steam genuinely sits between fire and water in
-meaning. A hammer doesn't.
-
-## Ties
-
-If both words are almost exactly equally close (within 2%), it's a tie. When you
-create the room you choose what happens: **both players score**, or **nobody
-scores**.
-
-## Words the app doesn't know
-
-The dictionary holds the 50,000 most common English words. If you type something
-outside that, the app tries a few sensible fallbacks before giving up:
-
-| You type | What happens |
-| --- | --- |
-| `cats` | Found directly |
-| `running` | Found directly |
-| `ice cream` | Averages "ice" and "cream" |
-| `bunnies` | Falls back to "bunny" |
-| `zzqxwvplop` | Not found — scores 0 |
-
-The text box tells you which of these is happening **before** you commit, so you
-never get surprised at the reveal. It says one of:
-
-- *"in the dictionary"* — good to go
-- *"scored as bunny"* — it found something close
-- *"unknown word, scores 0"* — you'll get zero points
+How many rounds it took. Fewer is better, and it's a shared result — the end
+screen shows *"In sync, in 4 rounds"* with both your names side by side, and the
+share text reads the same way.
 
 ## Chat
 
-There's a chat panel at the bottom of the game screen. Tap it to open. It's
-deliberately plain: just messages. No read receipts, no "typing…" dots, no
-photos, no emoji reactions. Messages live as long as the room does.
+There's a chat panel in the game screen. Plain text only: no read receipts, no
+"typing…" dots, no photos, no reactions.
+
+On a phone it's a bar at the bottom you tap to open. On a desktop browser it sits
+docked on the right, always open.
+
+Chat matters more here than in most games. Since nothing in the app guides you
+toward each other, talking is how you build a shared sense of where you're both
+heading. Messages last as long as the room.
 
 ## Friends
 
 The first time you finish connecting with someone, the app remembers them. After
-that you can start a game with them from the Friends list without sharing a code
-again.
+that you can start a game from the Friends list without sharing a code again.
 
 One limitation: because there are no accounts, this memory is tied to the app
-install. Reinstall the app or switch phones and the friends list is gone.
+install. Reinstall or switch phones and the friends list is gone.
+
+## A note on testing alone
+
+You can't. Both players get an anonymous ID tied to their app install or browser,
+and **two tabs of the same browser share one ID** — so typing your own room code
+just tells you it's your own room.
+
+To try it with yourself, use two different browsers, or a normal window and a
+private window, or two devices.

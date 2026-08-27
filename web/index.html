@@ -85,6 +85,38 @@
   </div>
 
   <script>
+    // This app used to ship a Flutter service worker. It cached everything and
+    // kept serving a stale build after each deploy, so it is no longer generated
+    // (see --pwa-strategy=none in tools/build_web.sh).
+    //
+    // A browser that already registered the old worker will keep using it
+    // forever unless it is explicitly removed, so evict it and reload once.
+    // Without this, anyone who visited before the change would never see an
+    // update again.
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function (regs) {
+        if (!regs.length) return;
+        Promise.all(regs.map(function (r) { return r.unregister(); }))
+          .then(function () {
+            if (window.caches && caches.keys) {
+              return caches.keys().then(function (keys) {
+                return Promise.all(keys.map(function (k) {
+                  return caches.delete(k);
+                }));
+              });
+            }
+          })
+          .then(function () {
+            // Guarded so a failure to clear can never cause a reload loop.
+            if (!sessionStorage.getItem('nk-sw-cleared')) {
+              sessionStorage.setItem('nk-sw-cleared', '1');
+              location.reload();
+            }
+          })
+          .catch(function () { /* stale worker is not fatal */ });
+      });
+    }
+
     window.addEventListener('flutter-first-frame', function () {
       var boot = document.getElementById('boot');
       if (!boot) return;

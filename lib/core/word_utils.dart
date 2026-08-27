@@ -1,6 +1,7 @@
-/// Canonical form used for both equality ("did the words converge?") and
-/// embedding lookup. Keeping this in one place guarantees the two clients
-/// agree on whether a round matched.
+/// Canonical form used to decide whether two words converged.
+///
+/// This is the entire scoring rule of the game, so it lives in one place: both
+/// clients normalize identically and therefore always agree on a match.
 String normalizeWord(String raw) {
   final lowered = raw.toLowerCase().trim();
   final collapsed = lowered.replaceAll(RegExp(r'\s+'), ' ');

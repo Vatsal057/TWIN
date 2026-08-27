@@ -10,12 +10,10 @@ import '../models/friend.dart';
 import '../services/backend/firestore_backend.dart';
 import '../services/backend/game_backend.dart';
 import '../services/backend/local_backend.dart';
-import '../services/embeddings/glove_similarity.dart';
 
 enum SessionStatus { loading, ready, failed }
 
-/// App-wide singletons: the sync backend, the embedding table and the game
-/// engine that ties them together.
+/// App-wide singletons: the sync backend and the game engine.
 class AppSession extends ChangeNotifier {
   AppSession();
 
@@ -25,8 +23,9 @@ class AppSession extends ChangeNotifier {
   String? errorMessage;
 
   GameBackend? _backend;
-  GloveSimilarity? _similarity;
-  GameEngine? _engine;
+
+  /// Stateless and cheap — the rules need no data to apply.
+  final GameEngine engine = const GameEngine();
 
   String _displayName = 'Player';
   String _loadingStep = 'Starting up';
@@ -41,18 +40,6 @@ class AppSession extends ChangeNotifier {
     return b;
   }
 
-  GloveSimilarity get similarity {
-    final s = _similarity;
-    if (s == null) throw StateError('AppSession not initialised');
-    return s;
-  }
-
-  GameEngine get engine {
-    final e = _engine;
-    if (e == null) throw StateError('AppSession not initialised');
-    return e;
-  }
-
   String get displayName => _displayName;
   String get loadingStep => _loadingStep;
   String get localPlayerId => _backend?.localPlayerId ?? '';
@@ -63,10 +50,6 @@ class AppSession extends ChangeNotifier {
 
   Future<void> initialize() async {
     try {
-      _setStep('Loading word vectors');
-      _similarity = await GloveSimilarity.load();
-      _engine = GameEngine(_similarity!);
-
       final prefs = await SharedPreferences.getInstance();
       _displayName = prefs.getString(_nameKey) ?? 'Player';
 
@@ -97,10 +80,7 @@ class AppSession extends ChangeNotifier {
       backendFallbackReason =
           'Firebase is not configured on this build, so games are local only. '
           'See README.md to connect a project.';
-      return LocalBackend(
-        similarity: similarity,
-        displayName: _displayName,
-      );
+      return LocalBackend(displayName: _displayName);
     }
   }
 

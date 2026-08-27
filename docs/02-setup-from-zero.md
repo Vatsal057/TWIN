@@ -10,7 +10,7 @@ If you just want to run the already-configured project, skip to
 
 ## Step 1 — Install the tools
 
-You need four things.
+You need four things. Note there is no word list or model to prepare — the app ships no dictionary at all.
 
 **Flutter** — the framework the app is written in. This project was built with
 Flutter 3.41.5.
@@ -47,62 +47,7 @@ flutter doctor
 
 ---
 
-## Step 2 — Build the word dictionary
-
-The app needs its 50-numbers-per-word dictionary bundled inside it. This is a
-one-time step, and the finished file is already in the repo at
-`assets/embeddings/glove50.nkem`.
-
-To rebuild it from scratch:
-
-```bash
-curl -L -o glove.6B.50d.txt.gz \
-  https://raw.githubusercontent.com/uclnlp/inferbeddings/master/data/glove/glove.6B.50d.txt.gz
-gunzip glove.6B.50d.txt.gz
-
-python3 tools/build_embeddings.py \
-  --input glove.6B.50d.txt \
-  --output assets/embeddings/glove50.nkem \
-  --limit 50000
-```
-
-### Why not just use the raw file?
-
-The original GloVe file has 400,000 words and is 171 MB. Nobody wants that inside
-a phone app.
-
-The script shrinks it in two ways:
-
-- **Keeps only the 50,000 most common words.** You're playing a word game, not
-  parsing legal documents.
-- **Squashes each number from 4 bytes to 2.** This is called quantizing. It loses
-  a tiny bit of precision.
-
-Result: **5.35 MB**.
-
-The script prints how much precision was lost:
-
-```
-quant scale 0.857268  max cosine error 0.000057
-```
-
-That error, 0.000057, is the most any similarity score can be off by. The game's
-tie threshold is 0.02 — about 350 times bigger. So the squashing can never change
-who wins a round.
-
-### Why bundle it instead of calling an API?
-
-Three reasons: it's instant (no waiting on a network call every round), it's free
-(no API bill), and it works on a bad connection.
-
-There's a fourth reason that turns out to matter a lot, explained in doc 04:
-because both phones have the *identical* file, they both calculate the *identical*
-scores. That's what lets either phone decide the result of a round without a
-server refereeing.
-
----
-
-## Step 3 — Create the Firebase project
+## Step 2 — Create the Firebase project
 
 Firebase is the piece that lets two phones talk to each other. There's no server
 to write or host — Firebase's database is the messenger.
@@ -147,7 +92,7 @@ milliseconds.
 
 ---
 
-## Step 4 — Turn on Anonymous sign-in (by hand)
+## Step 3 — Turn on Anonymous sign-in (by hand)
 
 This is the one step nobody can automate. Open:
 
@@ -177,7 +122,7 @@ offline practice mode, which looks like Firebase was never set up at all.
 
 ---
 
-## Step 5 — Connect the web version
+## Step 4 — Connect the web version
 
 The web version can't read `google-services.json` — that's an Android-only file.
 It needs its settings written into the Dart code instead.
@@ -194,7 +139,7 @@ aren't listed.
 
 ---
 
-## Step 6 — Put it on the web
+## Step 5 — Put it on the web
 
 ```bash
 ./tools/build_web.sh --deploy
@@ -207,7 +152,7 @@ Doc 03 explains what App Links are and why that matters for sharing.
 
 ---
 
-## Step 7 — Make the phone app files
+## Step 6 — Make the phone app files
 
 ```bash
 flutter build apk --release --split-per-abi
@@ -222,13 +167,13 @@ Firebase project, or they'll each work fine and never see each other.
 
 ---
 
-## Step 8 — Check it worked
+## Step 7 — Check it worked
 
 Open the app. **Look for the amber warning box on the home screen.**
 
 - **No warning** — Firebase is connected. Create a room and you'll get a code.
 - **Warning present** — something's off. The app is in offline practice mode. Most
-  likely Anonymous sign-in isn't enabled (step 4) or `google-services.json` is
+  likely Anonymous sign-in isn't enabled (step 3) or `google-services.json` is
   missing.
 
 Then the real test: create a room on one phone, join with the code on the other.

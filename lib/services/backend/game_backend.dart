@@ -17,7 +17,7 @@ class BackendException implements Exception {
 }
 
 /// Computes a round outcome from the two revealed words. Supplied by the game
-/// controller so the backend never needs to know about embeddings.
+/// controller so the backend never needs to know the rules.
 typedef RoundResolver =
     RoundResolution Function(Room room, String p1Word, String p2Word);
 
@@ -70,7 +70,7 @@ abstract class GameBackend {
     required int roundIndex,
   });
 
-  /// Appends the resolved round to history, updates scores and advances or ends
+  /// Appends the resolved round to history and advances or ends
   /// the game. Idempotent: safe for both clients to call for the same round.
   Future<void> commitRound({
     required String code,

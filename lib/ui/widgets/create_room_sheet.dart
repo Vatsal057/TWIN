@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/game_config.dart';
 import '../app_theme.dart';
+import '../layout.dart';
 import 'section_label.dart';
 
 /// Host-side game settings, asked once before the room exists.
@@ -22,6 +23,8 @@ class CreateRoomSheet extends StatefulWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: AppTheme.inkRaised,
+      // Without this the sheet spans a full desktop monitor.
+      constraints: const BoxConstraints(maxWidth: Layout.contentMaxWidth),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -35,7 +38,6 @@ class CreateRoomSheet extends StatefulWidget {
 
 class _CreateRoomSheetState extends State<CreateRoomSheet> {
   late int? _limit = widget.initial.maxRounds;
-  late TieRule _tieRule = widget.initial.tieRule;
 
   @override
   Widget build(BuildContext context) {
@@ -84,37 +86,11 @@ class _CreateRoomSheetState extends State<CreateRoomSheet> {
                 color: AppTheme.parchment.withValues(alpha: 0.6),
               ),
             ),
-            const SizedBox(height: 28),
-            const SectionLabel('When it is too close to call'),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final rule in TieRule.values)
-                  _Choice(
-                    label: rule == TieRule.bothScore
-                        ? 'Both score'
-                        : 'Nobody scores',
-                    selected: _tieRule == rule,
-                    onTap: () => setState(() => _tieRule = rule),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Applies when the two words land within '
-              '${(widget.initial.tieThreshold * 100).round()}% of each other.',
-              style: TextStyle(
-                fontSize: 12.5,
-                color: AppTheme.parchment.withValues(alpha: 0.6),
-              ),
-            ),
             const SizedBox(height: 30),
             FilledButton(
-              onPressed: () => Navigator.of(context).pop(
-                widget.initial.copyWith(maxRounds: _limit, tieRule: _tieRule),
-              ),
+              onPressed: () => Navigator.of(
+                context,
+              ).pop(widget.initial.copyWith(maxRounds: _limit)),
               child: const Text('Create room'),
             ),
           ],
@@ -138,7 +114,9 @@ class _Choice extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: selected ? AppTheme.seed.withValues(alpha: 0.18) : AppTheme.inkCard,
+      color: selected
+          ? AppTheme.seed.withValues(alpha: 0.18)
+          : AppTheme.inkCard,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),

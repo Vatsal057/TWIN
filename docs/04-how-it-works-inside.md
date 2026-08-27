@@ -14,20 +14,19 @@ lib/
   models/      the shapes of things (room, round, message, friend)
   services/
     backend/   talking to Firebase
-    embeddings/ the word dictionary
   state/       glue between rules and screens
   ui/          screens and widgets
 tools/         helper scripts
 ```
 
 The important line is **`lib/game/` contains no Flutter code and no Firebase
-code.** It's pure logic: give it a room and two words, it tells you who won. That
-means the rules can be reasoned about and tested without a phone, a screen, or an
-internet connection.
+code.** It's pure logic, and after removing the scoring system it is very small:
+give it two words and it tells you whether they match and whether the game is
+over.
 
-`GameEngine.resolveRound` holds every rule in one place: round 1 isn't scored,
-matching words end the game, closer word wins, ties use the configured rule, the
-round cap stops play.
+`GameEngine.resolveRound` holds the whole rule set — tidy both words, compare
+them, stop if they match or the round cap is reached. That's it. It needs no data,
+which is why `GameEngine` is a `const` object with no dependencies.
 
 ---
 
@@ -99,32 +98,29 @@ seeing theirs.
 
 Nobody, and both of them.
 
-When the second word lands, **both** phones notice, both look up the two words,
-and both work out the result. Then each tries to write it down, with the condition
+When the second word lands, **both** clients notice, both read the two words, and
+both work out the result. Then each tries to write it down, with the condition
 "only if nobody's written round 4 yet."
 
 One write succeeds. The other harmlessly does nothing.
 
-This is safe only because both phones have the identical word dictionary, so they
-always compute the identical result. It genuinely doesn't matter which one wins
-the race.
+This is safe because the rule is `word A == word B` after tidying. Two clients
+cannot disagree about that. There is no model, no data file, no numbers to drift.
 
-That's also why doc 03 warns against giving the web version a smaller dictionary —
-it would break this whole arrangement.
+### This used to be the risky part
 
-### The honest weakness
+An earlier version scored each round by comparing words against a bundled table of
+word-meaning vectors, and awarded points to whoever was closer.
 
-Because there's no server, the security rules can check the *shape* of a result
-being written but can't recalculate the scores. Someone running a modified app
-could give themselves points.
+That made the arrangement above fragile in two ways. Both clients had to hold a
+byte-identical copy of a 5 MB data file or they'd compute different scores — which
+also meant the web version couldn't ship a smaller file to load faster. And the
+security rules could check the *shape* of a result but not recompute it, so a
+modified client could quietly award itself points.
 
-For a game between two friends, that's fine.
-
-If you ever needed it airtight, move the round calculation into a Cloud Function
-and change the rules to forbid clients writing `rounds` and `scores` directly. The
-`GameBackend` interface is the seam designed for that swap.
-
----
+Removing scoring removed both problems. There is nothing left to compute, nothing
+to keep in sync, and nothing to cheat at — a client could write `matched: true`
+dishonestly, but since nobody wins anything, there's no reason to.
 
 ## Why there are two backends
 
@@ -140,8 +136,10 @@ The fallback isn't decoration. It means the app never dead-ends on a crash if
 Firebase is missing — it explains itself and stays usable. It also made the whole
 game testable before any Firebase project existed.
 
-The practice opponent aims at the midpoint but picks from the top few options
-rather than the single best, so it's beatable.
+The practice opponent can't be clever — with no word list, nothing in the app
+knows which words sit "between" two others. So it behaves like a cooperative
+human: with a chance that rises each round it plays back the word *you* just used,
+trying to meet you where you are. Hold a word steady and the game converges.
 
 ---
 
@@ -159,42 +157,6 @@ game reaches.
 
 ---
 
-## The word dictionary file
-
-Custom format, `assets/embeddings/glove50.nkem`:
-
-```
-header      magic bytes, version, 50 dimensions, 50000 words
-words       the words themselves, most common first
-sort index  the same words in alphabetical order
-numbers     50000 x 50 squashed numbers
-```
-
-Two orderings, on purpose.
-
-**Frequency order** is the main one. "Search only the 15,000 most common words"
-becomes "look at the first 15,000 rows" — nothing to filter.
-
-**Alphabetical order** is a separate index used for the fallback that finds a
-similar-looking word. Binary search needs sorted data, and sorting 50,000 words
-every time the app starts would waste time on every launch.
-
-An earlier version stored only alphabetical order, and this caused a real bug —
-see doc 05.
-
-Loading the whole file takes about 55 milliseconds.
-
-### Function words are filtered out
-
-Words like *the*, *of*, *around*, *through* sit near the centre of meaning-space,
-so they come out "close to the middle" of almost any pair. Left alone, the practice
-opponent would just play prepositions forever.
-
-There's a list of 171 such words that never get suggested. Players can still
-type them; they're only excluded from the app's own suggestions.
-
----
-
 ## Screens
 
 One page owns the whole room and swaps what it shows:
@@ -208,6 +170,52 @@ RoomPage
 
 They share one connection and one chat stream, so the chat doesn't reset when the
 game moves from lobby to play to result.
+
+---
+
+## Two layouts, one codebase
+
+The game was designed for phones. Dropped onto a desktop browser unchanged, it
+looked broken — buttons stretched a metre wide, text lines too long to read, and
+chat hidden behind a tap for no reason when there was obviously room for it.
+
+So there are two layouts, decided by window width at 900 pixels.
+
+**Narrow (phones, small windows).** One column. Chat is a collapsible sheet at the
+bottom with an unread badge.
+
+**Wide (desktop browsers).** Two columns. The game sits in the middle, capped at
+560 pixels so the text stays readable, and chat is **docked on the right at 360
+pixels and always open**. The collapse control is gone entirely — there is
+nothing to toggle, and no unread badge, because you can already see everything.
+
+```
+narrow                        wide
+┌──────────────┐              ┌───────────────┬──────────┐
+│  score       │              │   score       │  chat    │
+│  word pair   │              │   word pair   │  ······  │
+│  type here   │              │   type here   │  ······  │
+│  history     │              │   history     │ [_____]▲ │
+├──────────────┤              │               │          │
+│ Chat  (tap)  │              │               │          │
+└──────────────┘              └───────────────┴──────────┘
+```
+
+Two pieces make this cheap to maintain:
+
+**`PageShell`** centres content and caps its width. Every screen is wrapped in it,
+so nothing stretches on a large monitor.
+
+**`ChatMessageList` and `ChatComposer` are shared.** The bottom sheet and the side
+panel are both thin frames around the same two widgets. Fix a bug in the message
+list and both layouts get the fix.
+
+One detail worth knowing: the docked panel marks chat as read when it mounts, and
+it does that *after* the first frame rather than during it. Notifying listeners
+mid-build is an error in Flutter.
+
+The reveal overlay is also capped and centred, otherwise the two words drift to
+opposite edges of a wide screen and stop reading as a pair.
 
 ---
 

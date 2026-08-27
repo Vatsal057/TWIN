@@ -71,6 +71,7 @@ class HomeScreen extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: AppTheme.inkRaised,
+      constraints: const BoxConstraints(maxWidth: Layout.contentMaxWidth),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -444,10 +445,11 @@ class _HowItWorks extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const steps = [
-      'Round 1: you both name a word in private. Nothing is scored.',
-      'Both words are revealed together.',
-      'Each round after, aim for the middle of the last two words.',
-      'Closer word takes the point. Match the same word and you are done.',
+      'You both type a word in private.',
+      'Both words are revealed at the same time.',
+      'Now aim for a word in between the two. So do they.',
+      'Keep going until you both type the same word. Then you have won '
+          'together.',
     ];
     return Container(
       padding: const EdgeInsets.all(18),
