@@ -31,13 +31,35 @@ bold "Building web (host: $WEB_HOST)"
 # charge until every tab of the site is closed. A reload, even a hard one, shows
 # stale UI. That is a bad trade for a game that needs the network to play anyway.
 #
-# Losing it costs almost nothing. The 5 MB word table is still cached by the
-# browser's normal HTTP cache (firebase.json marks it immutable for a year).
+# The flag is deprecated (flutter/flutter#156910) and prints a warning. The check
+# below verifies the outcome instead of trusting the flag, so when it eventually
+# disappears this fails loudly rather than silently shipping a worker again.
 flutter build web --release \
   --pwa-strategy=none \
   --dart-define=NAAMKARAN_WEB_HOST="$WEB_HOST" \
   || die "web build failed"
 ok "build/web"
+
+bold "Checking no service worker got registered"
+# Two independent signals, checked because the flag that suppresses the worker is
+# deprecated and a future SDK could quietly start emitting one again.
+#
+# Do NOT grep flutter_bootstrap.js for "serviceWorkerVersion" — that string is
+# part of the minified loader library and is present either way. The generated
+# tail of the file is what matters: with the worker disabled it reads
+# `_flutter.loader.load();` with no arguments, and Flutter writes a 0-byte
+# placeholder for flutter_service_worker.js.
+sw_bytes="$(wc -c < build/web/flutter_service_worker.js 2>/dev/null | tr -d ' ')"
+if [[ "${sw_bytes:-1}" != "0" ]]; then
+  die "Flutter emitted a real service worker (${sw_bytes} bytes).
+     Users would be pinned to a stale build after every deploy. The
+     --pwa-strategy=none flag is deprecated (flutter/flutter#156910); find the
+     current way to disable it before shipping."
+fi
+if grep -q 'serviceWorkerVersion:"' build/web/flutter_bootstrap.js 2>/dev/null; then
+  die "flutter_bootstrap.js registers a service worker with a real version."
+fi
+ok "no worker generated, bootstrap registers none"
 
 bold "Staging .well-known"
 if [[ -f web/well-known/assetlinks.json ]]; then

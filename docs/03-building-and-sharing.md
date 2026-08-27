@@ -180,6 +180,19 @@ The build passes `--pwa-strategy=none`, so there's no offline caching layer. Thi
 is deliberate: Flutter's service worker keeps serving the previous build after a
 deploy until every tab is closed, which makes updates unpredictable.
 
+**That flag is deprecated** ([flutter/flutter#156910](https://github.com/flutter/flutter/issues/156910))
+and will be removed. So `tools/build_web.sh` checks the *outcome* rather than
+trusting the flag, and fails the build if a worker reappears:
+
+- `flutter_service_worker.js` must be 0 bytes (Flutter's placeholder)
+- the generated tail of `flutter_bootstrap.js` must read `_flutter.loader.load();`
+  with no arguments
+
+Don't "simplify" that check by grepping `flutter_bootstrap.js` for
+`serviceWorkerVersion`. That string lives in the minified loader library and is
+present either way — it produces a false failure. Only a version with an actual
+value assigned (`serviceWorkerVersion:"..."`) means a worker is registered.
+
 `tools/sw_killswitch.js` is staged over the build output under the original
 filename. It removes any worker a browser already has, then reloads the tab. Leave
 it in place — it's harmless once a browser has run it, and removing it would strand
