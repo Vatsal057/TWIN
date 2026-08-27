@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// Naamkaran security rules.
+// TWIN security rules.
 //
 // Two guarantees matter here:
 //   1. Only the two players in a room can read or write that room and its

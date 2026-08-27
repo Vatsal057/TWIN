@@ -32,7 +32,7 @@ enum GamePhase {
   finished,
 }
 
-/// Pure state machine for Naamkaran.
+/// Pure state machine for TWIN.
 ///
 /// No Firebase, no Flutter, no word lists: given a room snapshot and the two
 /// submitted words it decides whether the pair converged and whether the game

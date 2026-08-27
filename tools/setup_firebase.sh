@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Provisions the Firebase project Naamkaran needs for real two-player games.
+# Provisions the Firebase project TWIN needs for real two-player games.
 #
 # Run this once, after `firebase login`. Everything it does is idempotent, so
 # re-running after a partial failure is safe.
@@ -14,8 +14,8 @@
 
 set -euo pipefail
 
-ANDROID_PACKAGE="com.naamkaran.naamkaran"
-IOS_BUNDLE="com.naamkaran.naamkaran"
+ANDROID_PACKAGE="com.twinnn.twin"
+IOS_BUNDLE="com.twinnn.twin"
 FIRESTORE_LOCATION="${FIRESTORE_LOCATION:-asia-south1}"
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -71,16 +71,16 @@ if [[ -z "$PROJECT_ID" ]]; then
 fi
 
 if [[ -z "$PROJECT_ID" ]]; then
-  PROJECT_ID="naamkaran-$(date +%s | tail -c 6)"
+  PROJECT_ID="twin-$(date +%s | tail -c 6)"
   info "Creating project $PROJECT_ID"
-  firebase projects:create "$PROJECT_ID" --display-name "Naamkaran" \
+  firebase projects:create "$PROJECT_ID" --display-name "TWIN" \
     || die "could not create project. Google caps how many projects an account may own; delete an old one or pass an existing project id."
   ok "created $PROJECT_ID"
 elif firebase projects:list 2>/dev/null | grep -q "$PROJECT_ID"; then
   ok "using existing $PROJECT_ID"
 else
   info "Project $PROJECT_ID not in your list; creating it"
-  firebase projects:create "$PROJECT_ID" --display-name "Naamkaran" \
+  firebase projects:create "$PROJECT_ID" --display-name "TWIN" \
     || die "could not create or access $PROJECT_ID"
 fi
 
@@ -97,7 +97,7 @@ else
 
   if [[ -z "$ANDROID_APP_ID" ]]; then
     info "Creating Android app for $ANDROID_PACKAGE"
-    firebase apps:create ANDROID "Naamkaran Android" \
+    firebase apps:create ANDROID "TWIN Android" \
       --package-name "$ANDROID_PACKAGE" --project "$PROJECT_ID" >/dev/null \
       || die "could not register the Android app"
     ANDROID_APP_ID="$(app_id_of ANDROID android)"
@@ -120,7 +120,7 @@ if [[ -f ios/Runner/GoogleService-Info.plist ]]; then
 else
   IOS_APP_ID="$(app_id_of IOS ios)"
   if [[ -z "$IOS_APP_ID" ]]; then
-    firebase apps:create IOS "Naamkaran iOS" \
+    firebase apps:create IOS "TWIN iOS" \
       --bundle-id "$IOS_BUNDLE" --project "$PROJECT_ID" >/dev/null 2>&1 || true
     IOS_APP_ID="$(app_id_of IOS ios)"
   fi

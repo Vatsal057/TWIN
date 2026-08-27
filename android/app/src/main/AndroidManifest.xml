@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="Naamkaran"
+        android:label="TWIN"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
@@ -28,23 +28,36 @@
             <!-- One-tap room joining. Firebase Dynamic Links shut down on
                  2025-08-25, so these are the native replacements. -->
 
-            <!-- Custom scheme: naamkaran://join?code=ABCDE
+            <!-- Custom scheme: twin://join?code=ABCDE
                  Works with no server setup, but most messaging apps will not
                  turn it into a tappable link. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="naamkaran"/>
+                <data android:scheme="twin"/>
             </intent-filter>
 
-            <!-- Verified App Link: https://naamkaran-31493.web.app/join?code=X
+            <!-- Verified App Link: https://twinnn.web.app/join?code=X
                  The host serves /.well-known/assetlinks.json carrying this
                  app's signing fingerprint, so a shared link opens the app.
                  Anyone without the app installed gets the web build instead.
 
                  The fingerprint in assetlinks.json must match whatever key
                  signs the APK. Change both together. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data
+                    android:scheme="https"
+                    android:host="twinnn.web.app"
+                    android:pathPrefix="/join"/>
+            </intent-filter>
+
+            <!-- The retired host. Kept so invite links shared before the rename
+                 still open the app instead of bouncing to a browser. Safe to
+                 drop once those links have aged out. -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>

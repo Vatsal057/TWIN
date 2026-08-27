@@ -10,15 +10,23 @@ class BrandMark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spacing = compact ? 4.0 : 8.0;
+
     return Column(
       children: [
-        Text(
-          'NAAMKARAN',
-          style: TextStyle(
-            fontSize: compact ? 18 : 30,
-            fontWeight: FontWeight.w300,
-            letterSpacing: compact ? 4 : 8,
-            color: AppTheme.parchment,
+        // letterSpacing trails the final glyph too, which pulls a mark this
+        // short visibly left of the dots below it. Nudge it back by the same
+        // amount so both rows share one centre line.
+        Padding(
+          padding: EdgeInsets.only(left: spacing),
+          child: Text(
+            'TWIN',
+            style: TextStyle(
+              fontSize: compact ? 18 : 30,
+              fontWeight: FontWeight.w300,
+              letterSpacing: spacing,
+              color: AppTheme.parchment,
+            ),
           ),
         ),
         if (!compact) ...[

@@ -1,6 +1,6 @@
 # 01 — What this game is
 
-Naamkaran is a word game for two people. You are **on the same side**. The goal is
+TWIN is a word game for two people. You are **on the same side**. The goal is
 to both say the same word.
 
 There are no points, no winner, no loser. You either find each other or you
@@ -17,7 +17,7 @@ Say you typed **fire** and your friend typed **water**.
 
 **Round 2.** Now you both try to name a word that sits *between* those two. You
 might think "steam". Your friend might think "steam" too — and that's the game
-over, you're in sync.
+over, you twinned.
 
 More likely you say **steam** and they say **cloud**. So now you have a new pair,
 and you both aim between steam and cloud. Maybe you both land on **mist**.
@@ -62,7 +62,7 @@ technical reason explained in doc 04.
 ## The only number
 
 How many rounds it took. Fewer is better, and it's a shared result — the end
-screen shows *"In sync, in 4 rounds"* with both your names side by side, and the
+screen shows *"Twinning!, in 4 rounds"* with both your names side by side, and the
 share text reads the same way.
 
 ## Chat

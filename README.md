@@ -1,12 +1,26 @@
-# Naamkaran
+# TWIN
 
 A two-player, real-time word convergence game. You and one other person keep
 naming words, each aiming at the middle of the last pair, until you both say the
 same word.
 
+> **On the name.** The app is **TWIN**. Everything a player can see uses that
+> name: the host is `twinnn.web.app`, the Android package is `com.twinnn.twin`,
+> and the invite scheme is `twin://`.
+>
+> One thing still carries the old name, and cannot stop doing so: the Firebase
+> project ID `naamkaran-31493`. Project IDs are immutable. Renaming it would mean
+> a new project, and that would abandon every existing room, pairing and friend
+> list. It is invisible to players, so it stays.
+>
+> The user-visible host could be renamed without any of that because
+> `twinnn.web.app` is a second *Hosting site* inside the same project, not a new
+> project. The old host stays alive and is still registered as an App Link, so
+> invites shared before the rename keep opening the app.
+
 Collaborative: no points, no winner, no loser. You find each other or you don't.
 
-**Play now:** https://naamkaran-31493.web.app
+**Play now:** https://twinnn.web.app
 
 > **New here?** [`docs/`](docs/README.md) has the same material in plain language,
 > broken into short guides: the rules, setup from scratch, building and sharing,
@@ -16,8 +30,8 @@ Collaborative: no points, no winner, no loser. You find each other or you don't.
 ## The mechanic
 
 1. Both players privately submit a word.
-2. Both words are revealed **at the same time**. If they match, the game ends on
-   the sync screen.
+2. Both words are revealed **at the same time**. If they match, `TWINNING!` slams
+   over the screen and the game ends on the result screen.
 3. If not, both players see the pair and aim for a word between them.
 4. Repeat until you converge, or until the optional round cap.
 5. Every round is kept for post-game review.
@@ -65,7 +79,7 @@ with a clear message. Use two browsers, or a private window, or two devices.
 [Firebase Dynamic Links shut down on 25 August 2025](https://firebase.google.com/support/dynamic-links-faq/),
 so this uses the native replacements plus the web build as the universal fallback.
 
-Shared link: `https://naamkaran-31493.web.app/join?code=ABCDE`
+Shared link: `https://twinnn.web.app/join?code=ABCDE`
 
 | Recipient | What happens |
 | --- | --- |
@@ -90,7 +104,7 @@ keytool -list -v -keystore <your.keystore> -alias <alias> | grep SHA256
 To move to your own domain:
 
 ```bash
-NAAMKARAN_WEB_HOST=play.example.com ./tools/build_web.sh --deploy
+TWIN_WEB_HOST=play.example.com ./tools/build_web.sh --deploy
 ```
 
 and update `android:host` in `android/app/src/main/AndroidManifest.xml` to match.
@@ -198,7 +212,7 @@ about it — there is no model or data file that could drift between them.
 
 ## Play on the web
 
-Live at **https://naamkaran-31493.web.app**
+Live at **https://twinnn.web.app**
 
 ```bash
 ./tools/build_web.sh --deploy

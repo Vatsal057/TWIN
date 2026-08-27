@@ -95,7 +95,7 @@ class LobbyView extends StatelessWidget {
     return SharePlus.instance.share(
       ShareParams(
         text: DeepLinkService.shareMessage(code, fromName: fromName),
-        subject: 'Play Naamkaran with me',
+        subject: 'Play TWIN with me',
       ),
     );
   }

@@ -87,7 +87,7 @@ Players can always tap to skip ahead.
 ## Use your own domain
 
 ```bash
-NAAMKARAN_WEB_HOST=play.example.com ./tools/build_web.sh --deploy
+TWIN_WEB_HOST=play.example.com ./tools/build_web.sh --deploy
 ```
 
 Then three more things:

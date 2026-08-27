@@ -4,6 +4,8 @@
     "indexes": "firestore.indexes.json"
   },
   "hosting": {
+    "//site": "The project holds two Hosting sites. Without an explicit site, deploys fail because Firebase cannot guess which one is meant. naamkaran-31493.web.app is the retired host, kept alive so invite links already shared keep working.",
+    "site": "twinnn",
     "public": "build/web",
     "//": "Do not add '**/.*' to ignore: it would exclude /.well-known/assetlinks.json and silently break Android App Links.",
     "ignore": ["firebase.json", "**/node_modules/**", "**/.DS_Store"],

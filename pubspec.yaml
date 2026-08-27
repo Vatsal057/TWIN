@@ -1,5 +1,5 @@
-name: naamkaran
-description: "A new Flutter project."
+name: twin
+description: "TWIN — a two-player word convergence game. Keep naming words until you both say the same one."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev

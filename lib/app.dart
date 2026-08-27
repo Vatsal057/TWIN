@@ -10,14 +10,14 @@ import 'ui/boot_screen.dart';
 import 'ui/home_screen.dart';
 import 'ui/room_launcher.dart';
 
-class NaamkaranApp extends StatefulWidget {
-  const NaamkaranApp({super.key});
+class TwinApp extends StatefulWidget {
+  const TwinApp({super.key});
 
   @override
-  State<NaamkaranApp> createState() => _NaamkaranAppState();
+  State<TwinApp> createState() => _TwinAppState();
 }
 
-class _NaamkaranAppState extends State<NaamkaranApp> {
+class _TwinAppState extends State<TwinApp> {
   final _navigatorKey = GlobalKey<NavigatorState>();
   final _session = AppSession();
   final _deepLinks = DeepLinkService();
@@ -79,7 +79,7 @@ class _NaamkaranAppState extends State<NaamkaranApp> {
         Provider<DeepLinkService>.value(value: _deepLinks),
       ],
       child: MaterialApp(
-        title: 'Naamkaran',
+        title: 'TWIN',
         debugShowCheckedModeBanner: false,
         navigatorKey: _navigatorKey,
         theme: AppTheme.dark(),

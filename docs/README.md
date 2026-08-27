@@ -1,4 +1,4 @@
-# Naamkaran docs
+# TWIN docs
 
 Plain-language guides to this project. Read them in order if you're new, or jump
 to what you need.
@@ -14,7 +14,7 @@ to what you need.
 
 ## The 30-second version
 
-Naamkaran is a word game for two people, played **on the same side**. You both
+TWIN is a word game for two people, played **on the same side**. You both
 type a word. Then you both try to name a word "in the middle" of the last two. You
 keep going until you both type the same word.
 
@@ -22,16 +22,19 @@ No points, no winner. You find each other or you don't.
 
 It works over the internet, so the two players can be anywhere.
 
-**Live now:** https://naamkaran-31493.web.app
+**Live now:** https://twinnn.web.app
 
 ## Key facts about this specific setup
 
 | Thing | Value |
 | --- | --- |
-| Firebase project | `naamkaran-31493` |
-| Website | https://naamkaran-31493.web.app |
+| Firebase project | `naamkaran-31493` (immutable, predates the rename, invisible to players) |
+| Hosting site | `twinnn` |
+| Website | https://twinnn.web.app |
+| Retired website | https://naamkaran-31493.web.app (kept so old invite links still work) |
 | Database location | `asia-south1` (Mumbai) |
-| Android package name | `com.naamkaran.naamkaran` |
+| Android package name | `com.twinnn.twin` |
+| Invite scheme | `twin://join?code=ABCDE` |
 | Sign-in method | Anonymous (no accounts, no passwords) |
 
 If you're setting this up fresh under a different Firebase project, your project

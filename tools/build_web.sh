@@ -4,7 +4,7 @@
 #
 #   ./tools/build_web.sh                      # build only
 #   ./tools/build_web.sh --deploy             # build and deploy
-#   NAAMKARAN_WEB_HOST=play.example.com ./tools/build_web.sh --deploy
+#   TWIN_WEB_HOST=play.example.com ./tools/build_web.sh --deploy
 #
 # The staging step exists because `flutter build web` does not copy dot-prefixed
 # directories out of web/, so the App Links file is kept at web/well-known/ and
@@ -12,8 +12,13 @@
 
 set -euo pipefail
 
+# The project ID is immutable and still carries the old name; it is invisible to
+# players. HOSTING_SITE is the user-visible half, and is a separate Hosting site
+# inside that same project, which is why the host could be renamed without
+# migrating any data. Keep it in step with "site" in firebase.json.
 PROJECT_ID="${FIREBASE_PROJECT:-naamkaran-31493}"
-WEB_HOST="${NAAMKARAN_WEB_HOST:-$PROJECT_ID.web.app}"
+HOSTING_SITE="${FIREBASE_HOSTING_SITE:-twinnn}"
+WEB_HOST="${TWIN_WEB_HOST:-$HOSTING_SITE.web.app}"
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
@@ -36,7 +41,7 @@ bold "Building web (host: $WEB_HOST)"
 # disappears this fails loudly rather than silently shipping a worker again.
 flutter build web --release \
   --pwa-strategy=none \
-  --dart-define=NAAMKARAN_WEB_HOST="$WEB_HOST" \
+  --dart-define=TWIN_WEB_HOST="$WEB_HOST" \
   || die "web build failed"
 ok "build/web"
 
@@ -92,8 +97,11 @@ info "total build/web: $(du -sh build/web | awk '{print $1}')"
 info "main.dart.js gzipped: $(gzip -c build/web/main.dart.js | wc -c | awk '{printf "%.2f MB", $1/1048576}')"
 
 if [[ "${1:-}" == "--deploy" ]]; then
-  bold "Deploying to Firebase Hosting"
-  firebase deploy --only hosting --project "$PROJECT_ID" || die "deploy failed"
+  bold "Deploying to Firebase Hosting (site: $HOSTING_SITE)"
+  # The site is named explicitly because the project holds more than one, and a
+  # bare `--only hosting` would be ambiguous.
+  firebase deploy --only "hosting:$HOSTING_SITE" --project "$PROJECT_ID" \
+    || die "deploy failed"
   echo
   ok "live at https://$WEB_HOST"
 fi

@@ -91,14 +91,14 @@ class _Headline extends StatelessWidget {
               : AppTheme.seed);
 
     final title = converged
-        ? 'In sync'
+        ? 'Twinning!'
         : (abandoned ? 'Game abandoned' : 'Out of rounds');
 
     final subtitle = converged
         ? 'You both said the same word.'
         : (abandoned
-              ? 'Someone left before you converged.'
-              : 'You ran out of rounds before converging.');
+              ? 'Someone left before you twinned.'
+              : 'You ran out of rounds before twinning.');
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 34),
@@ -281,16 +281,16 @@ class _Actions extends StatelessWidget {
 
   static Future<void> _shareResult(GameController game, Room room) {
     final last = room.lastRound;
-    final buffer = StringBuffer('Naamkaran — ');
+    final buffer = StringBuffer('TWIN — ');
     if (room.converged && last != null) {
       buffer.writeln(
-        '${game.localName} and ${game.opponentName} converged on '
+        '${game.localName} and ${game.opponentName} twinned on '
         '"${titleCaseWord(last.p1Word)}" in ${room.rounds.length} rounds.',
       );
     } else {
       buffer.writeln(
         '${game.localName} and ${game.opponentName} played '
-        '${room.rounds.length} rounds without converging.',
+        '${room.rounds.length} rounds without twinning.',
       );
     }
     buffer.writeln();

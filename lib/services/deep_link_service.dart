@@ -8,9 +8,13 @@ import 'room_code.dart';
 /// Host serving the web build. Also the domain that must serve
 /// `/.well-known/assetlinks.json` for Android App Links to open the installed
 /// app instead of the browser.
-const naamkaranWebHost = String.fromEnvironment(
-  'NAAMKARAN_WEB_HOST',
-  defaultValue: 'naamkaran-31493.web.app',
+///
+/// This is a Hosting *site* in the Firebase project, not the project itself —
+/// the project is still `naamkaran-31493` and cannot be renamed, but a site can
+/// be added alongside it, which is how the user-visible host became twinnn.
+const twinWebHost = String.fromEnvironment(
+  'TWIN_WEB_HOST',
+  defaultValue: 'twinnn.web.app',
 );
 
 /// One-tap room joining.
@@ -24,11 +28,17 @@ class DeepLinkService {
 
   /// Custom scheme. Works immediately, no domain verification needed, but most
   /// messaging apps will not linkify it.
-  static const scheme = 'naamkaran';
+  ///
+  /// `twin` is a common word, so unlike the old scheme it is not inherently
+  /// unique — another installed app could register it, in which case Android
+  /// shows a chooser and iOS picks arbitrarily. Acceptable because this is only
+  /// the fallback; verified App Links are the primary path. Lengthen this if a
+  /// collision ever shows up in the wild.
+  static const scheme = 'twin';
 
   /// Host for https links. Override at build time with
-  /// `--dart-define=NAAMKARAN_WEB_HOST=example.com`.
-  static const webHost = naamkaranWebHost;
+  /// `--dart-define=TWIN_WEB_HOST=example.com`.
+  static const webHost = twinWebHost;
 
   static const joinPath = 'join';
 
@@ -69,10 +79,10 @@ class DeepLinkService {
   }
 
   /// Accepts every shape we generate:
-  ///   naamkaran://join?code=ABCDE
-  ///   naamkaran://join/ABCDE
-  ///   https://naamkaran.app/join?code=ABCDE
-  ///   https://naamkaran.app/join/ABCDE
+  ///   twin://join?code=ABCDE
+  ///   twin://join/ABCDE
+  ///   https://twinnn.web.app/join?code=ABCDE
+  ///   https://twinnn.web.app/join/ABCDE
   static String? parseRoomCode(Uri uri) {
     final candidates = <String>[];
 
@@ -82,7 +92,7 @@ class DeepLinkService {
     final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
     if (segments.isNotEmpty) candidates.add(segments.last);
 
-    // naamkaran://ABCDE puts the code in the authority. Only consider the host
+    // twin://ABCDE puts the code in the authority. Only consider the host
     // for the custom scheme — for an https URL the host is a domain, and
     // treating it as a candidate code would be wrong on any host we do not own.
     if (uri.scheme == scheme && uri.host.isNotEmpty) candidates.add(uri.host);
@@ -105,7 +115,7 @@ class DeepLinkService {
     final who = (fromName == null || fromName.trim().isEmpty)
         ? 'Someone'
         : fromName.trim();
-    return '$who wants to play Naamkaran with you.\n\n'
+    return '$who wants to play TWIN with you.\n\n'
         'Tap to join: ${webJoinUri(code)}\n'
         'Or enter room code: $code';
   }

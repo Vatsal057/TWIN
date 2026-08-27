@@ -15,13 +15,13 @@ if (file("google-services.json").exists()) {
     apply(plugin = "com.google.gms.google-services")
 } else {
     logger.lifecycle(
-        "Naamkaran: android/app/google-services.json not found - building " +
+        "TWIN: android/app/google-services.json not found - building " +
             "without Firebase. Multiplayer will be unavailable. See README.md."
     )
 }
 
 android {
-    namespace = "com.naamkaran.naamkaran"
+    namespace = "com.twinnn.twin"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -35,8 +35,9 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.naamkaran.naamkaran"
+        // Registered in Firebase as "TWIN Android". Permanent once published to
+        // Play, so it must not change after the first release.
+        applicationId = "com.twinnn.twin"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

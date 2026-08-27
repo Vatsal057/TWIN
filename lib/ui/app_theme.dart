@@ -16,6 +16,10 @@ class AppTheme {
   static const playerTwo = Color(0xFF6FB3C6);
   static const converged = Color(0xFF7FC08A);
 
+  /// Lifted [converged], for the one place that needs to shout: the full-screen
+  /// flash behind TWINNING!. Too loud to use as a surface colour.
+  static const convergedBright = Color(0xFF9BE0A8);
+
   static ThemeData dark() {
     final scheme = ColorScheme.fromSeed(
       seedColor: seed,

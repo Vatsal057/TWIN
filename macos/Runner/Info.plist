@@ -34,10 +34,10 @@
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>CFBundleURLName</key>
-			<string>com.naamkaran.naamkaran</string>
+			<string>com.twinnn.twin</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>naamkaran</string>
+				<string>twin</string>
 			</array>
 		</dict>
 	</array>

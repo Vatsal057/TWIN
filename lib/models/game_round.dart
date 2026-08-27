@@ -3,7 +3,7 @@ import '../core/word_utils.dart';
 /// One completed round: the pair of words revealed together, and whether they
 /// converged. Immutable — rounds are append-only history.
 ///
-/// There is deliberately no score here. Naamkaran is collaborative: the only
+/// There is deliberately no score here. TWIN is collaborative: the only
 /// outcome that matters is whether the two words met, and how many rounds it
 /// took to get there.
 class GameRound {

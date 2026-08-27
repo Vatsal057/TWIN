@@ -347,7 +347,7 @@ Which means you can't build at all before setting up Firebase.
 if (file("google-services.json").exists()) {
     apply(plugin = "com.google.gms.google-services")
 } else {
-    logger.lifecycle("Naamkaran: google-services.json not found - building without Firebase.")
+    logger.lifecycle("TWIN: google-services.json not found - building without Firebase.")
 }
 ```
 

@@ -38,7 +38,7 @@ could grab the same one.
 ## The share link
 
 ```
-https://naamkaran-31493.web.app/join?code=K7RQP
+https://twinnn.web.app/join?code=K7RQP
 ```
 
 One link, and nobody hits a dead end:
@@ -64,7 +64,7 @@ Dynamic Links**. Don't use it. Google shut it down on 25 August 2025 and existin
 links stopped working.
 
 This project uses the native replacements instead: **Android App Links** for the
-https link, and a custom `naamkaran://` scheme as a backup. The custom scheme
+https link, and a custom `twin://` scheme as a backup. The custom scheme
 works with no setup at all, but most chat apps won't turn it into something
 tappable, so it's a fallback rather than the main path.
 
@@ -76,7 +76,7 @@ An App Link is an https link that opens an app instead of a browser. Android onl
 allows this if the *website* vouches for the *app*. That proof is a file:
 
 ```
-https://naamkaran-31493.web.app/.well-known/assetlinks.json
+https://twinnn.web.app/.well-known/assetlinks.json
 ```
 
 It contains the app's package name and a fingerprint of the key used to sign the
@@ -86,7 +86,7 @@ only then starts opening links in the app.
 You can check it yourself with Google's own verification API:
 
 ```bash
-curl -s "https://digitalassetlinks.googleapis.com/v1/statements:list?source.web.site=https://naamkaran-31493.web.app&relation=delegate_permission/common.handle_all_urls"
+curl -s "https://digitalassetlinks.googleapis.com/v1/statements:list?source.web.site=https://twinnn.web.app&relation=delegate_permission/common.handle_all_urls"
 ```
 
 If it says `"errorCode"` anything, links won't open the app.
@@ -212,7 +212,7 @@ request for the root.
 ## Using your own domain
 
 ```bash
-NAAMKARAN_WEB_HOST=play.example.com ./tools/build_web.sh --deploy
+TWIN_WEB_HOST=play.example.com ./tools/build_web.sh --deploy
 ```
 
 Then two more edits:

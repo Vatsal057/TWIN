@@ -23,6 +23,44 @@
           "other_platform_oauth_client": []
         }
       }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:639497657139:android:78a03c2c6179ae27c9bc46",
+        "android_client_info": {
+          "package_name": "com.twinnn.twin"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBl0ZiTeB-iWg52skuD30jZVkpEvvdD9po"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:639497657139:android:10d0cbc8256b564ec9bc46",
+        "android_client_info": {
+          "package_name": "com.vatsal.twin"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBl0ZiTeB-iWg52skuD30jZVkpEvvdD9po"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
     }
   ],
   "configuration_version": "1"

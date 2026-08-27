@@ -3,7 +3,7 @@
     "relation": ["delegate_permission/common.handle_all_urls"],
     "target": {
       "namespace": "android_app",
-      "package_name": "com.naamkaran.naamkaran",
+      "package_name": "com.twinnn.twin",
       "sha256_cert_fingerprints": [
         "A1:00:F2:E9:2F:4A:CF:3E:41:43:F7:14:24:DA:85:EF:05:37:29:A8:BA:69:D9:C1:13:73:B8:86:62:D8:DB:5F"
       ]

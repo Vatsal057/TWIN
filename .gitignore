@@ -45,7 +45,7 @@ app.*.map.json
 /android/app/release
 
 # ---------------------------------------------------------------------------
-# Naamkaran additions
+# TWIN additions
 # ---------------------------------------------------------------------------
 
 # Firebase CLI local state. hosting.*.cache is a per-machine deploy fingerprint

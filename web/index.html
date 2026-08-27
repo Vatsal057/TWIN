@@ -10,19 +10,19 @@
   <meta name="theme-color" content="#14120F">
 
   <!-- Link previews, so a shared room link looks like something in chat apps -->
-  <meta property="og:title" content="Naamkaran">
-  <meta property="og:description" content="Two minds, one word. Keep naming words until you converge.">
+  <meta property="og:title" content="TWIN">
+  <meta property="og:description" content="Two minds, one word. Keep naming words until you twin.">
   <meta property="og:type" content="website">
   <meta name="twitter:card" content="summary">
 
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Naamkaran">
+  <meta name="apple-mobile-web-app-title" content="TWIN">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>Naamkaran</title>
+  <title>TWIN</title>
   <link rel="manifest" href="manifest.json">
 
   <style>
@@ -50,6 +50,9 @@
       font-size: 15px;
       font-weight: 300;
       letter-spacing: 6px;
+      /* letter-spacing trails the last glyph, so a 4-letter mark would sit
+         half a space left of the bar below it. Matching padding re-centres it. */
+      padding-left: 6px;
     }
     #boot .note {
       font-size: 11px;
@@ -79,7 +82,7 @@
   <!-- Shown until Flutter takes over. The first visit downloads the bundled
        word-vector table, so a plain white screen would look broken. -->
   <div id="boot">
-    <div class="mark">NAAMKARAN</div>
+    <div class="mark">TWIN</div>
     <div class="bar"><span></span></div>
     <div class="note">loading word vectors</div>
   </div>
