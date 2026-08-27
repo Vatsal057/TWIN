@@ -55,7 +55,8 @@ firebase-debug.log
 firestore-debug.log
 ui-debug.log
 
-# CocoaPods (regenerated from the Podfile)
+# CocoaPods (regenerated from the Podfile). Kept although ios/ and macos/ were
+# removed, so re-adding an Apple platform does not immediately dirty the tree.
 **/Pods/
 **/.symlinks/
 ios/Flutter/Flutter.podspec

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Adaptive launcher icon, used from API 26 onwards. Older versions fall back to
+  the flat mipmap-<density>/ic_launcher.png files, which are self-rounded
+  because those launchers do not mask the icon themselves.
+
+  The layers are each 108dp, of which only the middle 72dp is guaranteed to
+  survive a launcher's mask shape, so the artwork is generated well inside that
+  safe zone. See tools/make_icons.py, which is the source of truth for all of it.
+
+  monochrome drives Android 13 themed icons: the system discards its colour and
+  tints the silhouette to match the user's wallpaper.
+-->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background" />
+    <foreground android:drawable="@mipmap/ic_launcher_foreground" />
+    <monochrome android:drawable="@mipmap/ic_launcher_monochrome" />
+</adaptive-icon>

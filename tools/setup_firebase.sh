@@ -15,7 +15,6 @@
 set -euo pipefail
 
 ANDROID_PACKAGE="com.twinnn.twin"
-IOS_BUNDLE="com.twinnn.twin"
 FIRESTORE_LOCATION="${FIRESTORE_LOCATION:-asia-south1}"
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -33,8 +32,8 @@ die()  { printf '\033[31m  ✗ %s\033[0m\n' "$1" >&2; exit 1; }
 # column, so neither column-splitting nor filtering by package works. Matching
 # the app id's own shape (1:<projectNumber>:<platform>:<hash>) is unambiguous
 # and survives any table reformatting.
-#   $1 platform for the CLI (ANDROID / IOS)
-#   $2 platform as it appears inside the app id (android / ios)
+#   $1 platform for the CLI (only ANDROID is used; the project has no Apple targets)
+#   $2 platform as it appears inside the app id (android)
 app_id_of() {
   firebase apps:list "$1" --project "$PROJECT_ID" 2>/dev/null \
     | grep -oE "1:[0-9]+:$2:[0-9a-zA-Z]+" \
@@ -111,29 +110,9 @@ else
   ok "wrote android/app/google-services.json"
 fi
 
-# ------------------------------------------------------------------ ios app
-
-bold "Registering the iOS app"
-
-if [[ -f ios/Runner/GoogleService-Info.plist ]]; then
-  ok "ios/Runner/GoogleService-Info.plist already present"
-else
-  IOS_APP_ID="$(app_id_of IOS ios)"
-  if [[ -z "$IOS_APP_ID" ]]; then
-    firebase apps:create IOS "TWIN iOS" \
-      --bundle-id "$IOS_BUNDLE" --project "$PROJECT_ID" >/dev/null 2>&1 || true
-    IOS_APP_ID="$(app_id_of IOS ios)"
-  fi
-  if [[ -n "$IOS_APP_ID" ]]; then
-    firebase apps:sdkconfig IOS "$IOS_APP_ID" --project "$PROJECT_ID" \
-      --out ios/Runner/GoogleService-Info.plist >/dev/null 2>&1 \
-      && ok "wrote ios/Runner/GoogleService-Info.plist" \
-      || warn "could not download the iOS plist; Android is enough to start"
-    warn "iOS also needs the plist added to the Runner target in Xcode"
-  else
-    warn "skipped iOS registration; not needed for Android-only testing"
-  fi
-fi
+# No iOS or macOS step: those platform folders were removed from the project, so
+# the app ships on Android and the web only. Re-add them with
+# `flutter create --platforms=ios .` before registering an Apple app here.
 
 # ---------------------------------------------------------------- firestore
 

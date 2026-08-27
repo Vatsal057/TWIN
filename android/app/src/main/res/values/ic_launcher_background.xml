@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- AppTheme.ink. The adaptive icon's background layer is a flat colour
+         rather than a bitmap, so the launcher can scale, parallax and mask it
+         without ever exposing an edge. Keep in step with lib/ui/app_theme.dart. -->
+    <color name="ic_launcher_background">#14120F</color>
+</resources>

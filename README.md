@@ -122,9 +122,9 @@ firebase login                 # browser OAuth, cannot be scripted
 ./tools/setup_firebase.sh      # everything else
 ```
 
-The script creates or selects a project, registers the Android and iOS apps,
-downloads `google-services.json` / `GoogleService-Info.plist`, creates the
-Firestore database and deploys the security rules. It is idempotent.
+The script creates or selects a project, registers the Android app, downloads
+`google-services.json`, creates the Firestore database and deploys the security
+rules. It is idempotent.
 
 It leaves exactly one manual step, because the Firebase CLI has no command for
 auth providers: **enable Anonymous sign-in** in the console. The script prints the

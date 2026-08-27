@@ -131,20 +131,27 @@ You want `errors: none`.
 
 ## Add iOS
 
-Partly ready — the custom URL scheme is registered in `ios/Runner/Info.plist`.
+The `ios/` and `macos/` folders were deleted. The project targets Android and the
+web, and nothing Apple-specific is left to maintain.
 
-Still to do:
+To bring iOS back:
 
-1. `flutterfire configure --platforms=ios` and add the downloaded
-   `GoogleService-Info.plist` to the Runner target in Xcode.
-2. Install CocoaPods (`brew install cocoapods`) — it isn't installed here, which is
-   why iOS was never built.
-3. For Universal Links (the iOS equivalent of App Links): host an
-   `apple-app-site-association` file and add the
+1. `flutter create --platforms=ios .` regenerates the folder against the current
+   package name.
+2. `flutterfire configure --platforms=ios`, then add the downloaded
+   `GoogleService-Info.plist` to the Runner target in Xcode. There is no iOS app
+   registered in Firebase yet, so this creates one.
+3. Re-add the `twin://` custom scheme under `CFBundleURLTypes` in
+   `ios/Runner/Info.plist`.
+4. Install CocoaPods (`brew install cocoapods`) — it was never installed here,
+   which is the original reason iOS was never built.
+5. For Universal Links, the iOS equivalent of App Links: host an
+   `apple-app-site-association` file on `twinnn.web.app` and add the
    `com.apple.developer.associated-domains` entitlement.
 
-That entitlement was deliberately left out. Adding it without a matching Apple
-provisioning profile breaks local builds, which is a bad trade before you need it.
+That entitlement was deliberately left out before, and the reasoning still holds:
+adding it without a matching Apple provisioning profile breaks local builds,
+which is a bad trade before you need it.
 
 ---
 

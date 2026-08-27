@@ -20,8 +20,8 @@ const twinWebHost = String.fromEnvironment(
 /// One-tap room joining.
 ///
 /// Firebase Dynamic Links shut down on 25 August 2025, so this uses the native
-/// equivalents instead: verified App Links / Universal Links on the web host,
-/// with a custom scheme as the fallback that works with no hosting at all.
+/// equivalents instead: verified Android App Links on the web host, with a
+/// custom scheme as the fallback that works with no hosting at all.
 /// Both forms carry the same payload — the room code.
 class DeepLinkService {
   DeepLinkService({AppLinks? appLinks}) : _appLinks = appLinks ?? AppLinks();
@@ -30,10 +30,10 @@ class DeepLinkService {
   /// messaging apps will not linkify it.
   ///
   /// `twin` is a common word, so unlike the old scheme it is not inherently
-  /// unique — another installed app could register it, in which case Android
-  /// shows a chooser and iOS picks arbitrarily. Acceptable because this is only
-  /// the fallback; verified App Links are the primary path. Lengthen this if a
-  /// collision ever shows up in the wild.
+  /// unique — another installed app could register it too, in which case Android
+  /// shows a chooser. Acceptable because this is only the fallback; verified App
+  /// Links are the primary path. Lengthen this if a collision ever shows up in
+  /// the wild.
   static const scheme = 'twin';
 
   /// Host for https links. Override at build time with

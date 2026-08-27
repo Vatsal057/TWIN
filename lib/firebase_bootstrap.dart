@@ -5,9 +5,9 @@ import 'firebase_options.dart';
 /// Single place that decides which Firebase project the app talks to.
 ///
 /// Web has no native config file, so it needs explicit options — hence the
-/// generated `firebase_options.dart`. Android and iOS can also read
-/// `google-services.json` / `GoogleService-Info.plist`, which is the fallback
-/// when a platform is not in the generated file.
+/// generated `firebase_options.dart`. Android can also read
+/// `google-services.json`, which is the fallback when a platform is not in the
+/// generated file.
 ///
 /// Regenerate the options with:
 ///   `flutterfire configure --project=PROJECT_ID --platforms=web,android`
