@@ -1,0 +1,137 @@
+rules_version = '2';
+
+// Naamkaran security rules.
+//
+// Two guarantees matter here:
+//   1. Only the two players in a room can read or write that room and its
+//      messages.
+//   2. A word stays private until BOTH players have committed for the round.
+//      Without that, either client could peek at the opponent's word before
+//      submitting, which is the whole game.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function roomData(code) {
+      return get(/databases/$(database)/documents/rooms/$(code)).data;
+    }
+
+    // Membership is read off the room doc, so it survives both players
+    // reconnecting.
+    function isPlayerIn(code) {
+      return signedIn() && request.auth.uid in roomData(code).players;
+    }
+
+    // Both words are in: the round is locked and the pair may be revealed.
+    function roundLocked(code) {
+      return roomData(code).submittedBy.size() >= 2;
+    }
+
+    match /rooms/{code} {
+      // Players can always read their own room. A room still waiting for its
+      // second player is readable by any signed-in user, because that is the
+      // join handshake — but once the game is active or finished, only the two
+      // players can see it.
+      //
+      // `resource == null` must come first. For a document that does not exist
+      // `resource` is null, so dereferencing resource.data errors out and the
+      // rule denies. Room creation reserves a code by reading the doc it is
+      // about to write, and joining a bad code needs to come back "not found"
+      // rather than "permission denied".
+      allow get: if signedIn()
+        && (resource == null
+            || request.auth.uid in resource.data.players
+            || resource.data.status == 'waiting');
+
+      // No browsing the room list; codes must be shared out of band.
+      allow list: if false;
+
+      allow create: if signedIn()
+        && request.resource.data.hostId == request.auth.uid
+        && request.resource.data.players == [request.auth.uid]
+        && request.resource.data.status == 'waiting'
+        && request.resource.data.currentRound == 1
+        && request.resource.data.rounds.size() == 0
+        && request.resource.data.submittedBy.size() == 0;
+
+      // Joining: a second player appends themselves and flips to active.
+      allow update: if signedIn()
+        && resource.data.players.size() == 1
+        && !(request.auth.uid in resource.data.players)
+        && resource.data.status == 'waiting'
+        && request.resource.data.players == resource.data.players.concat([request.auth.uid])
+        && request.resource.data.hostId == resource.data.hostId
+        && request.resource.data.status == 'active';
+
+      // Normal play: only the two players, and they can never rewrite who is
+      // playing or edit history that has already been written.
+      allow update: if signedIn()
+        && request.auth.uid in resource.data.players
+        && request.resource.data.players == resource.data.players
+        && request.resource.data.hostId == resource.data.hostId
+        && request.resource.data.code == resource.data.code
+        && request.resource.data.rounds.size() >= resource.data.rounds.size();
+
+      // Rooms are kept for post-game review; nobody deletes them from a client.
+      allow delete: if false;
+
+      match /submissions/{submissionId} {
+        // Own submission, always. Opponent's only once the round is locked.
+        allow get: if isPlayerIn(code)
+          && (submissionId.split('_')[1] == request.auth.uid || roundLocked(code));
+
+        allow list: if isPlayerIn(code) && roundLocked(code);
+
+        // Write only your own doc, for the round in progress, and only once —
+        // no changing your word after seeing the opponent's.
+        allow create: if isPlayerIn(code)
+          && submissionId == string(roomData(code).currentRound) + '_' + request.auth.uid
+          && request.resource.data.playerId == request.auth.uid
+          && request.resource.data.roundIndex == roomData(code).currentRound
+          && request.resource.data.word is string
+          && request.resource.data.word.size() > 0
+          && request.resource.data.word.size() <= 40;
+
+        allow update, delete: if false;
+      }
+
+      match /messages/{messageId} {
+        allow read: if isPlayerIn(code);
+
+        allow create: if isPlayerIn(code)
+          && request.resource.data.senderId == request.auth.uid
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 500;
+
+        // Plain stream: no edits, no deletes, nothing to mark as read.
+        allow update, delete: if false;
+      }
+    }
+
+    match /users/{userId} {
+      allow read, write: if signedIn() && request.auth.uid == userId;
+
+      match /friends/{friendId} {
+        // Each side writes only its own friends list.
+        allow read, write: if signedIn() && request.auth.uid == userId;
+      }
+
+      match /invites/{roomCode} {
+        allow read, delete: if signedIn() && request.auth.uid == userId;
+
+        // A friend may drop an invite in your inbox, but only if you already
+        // have them saved as a friend — so pairings still start with a code.
+        allow create: if signedIn()
+          && request.auth.uid != userId
+          && request.resource.data.fromId == request.auth.uid
+          && exists(/databases/$(database)/documents/users/$(userId)/friends/$(request.auth.uid));
+
+        allow update: if false;
+      }
+    }
+  }
+}

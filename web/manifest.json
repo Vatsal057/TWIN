@@ -1,0 +1,35 @@
+{
+    "name": "Naamkaran",
+    "short_name": "Naamkaran",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#14120F",
+    "theme_color": "#14120F",
+    "description": "A two-player word convergence game. Keep naming words until you both say the same one.",
+    "orientation": "portrait-primary",
+    "prefer_related_applications": false,
+    "icons": [
+        {
+            "src": "icons/Icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-maskable-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "icons/Icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
+}

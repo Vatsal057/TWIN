@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "639497657139",
+    "project_id": "naamkaran-31493",
+    "storage_bucket": "naamkaran-31493.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:639497657139:android:4b823a183c5a4045c9bc46",
+        "android_client_info": {
+          "package_name": "com.naamkaran.naamkaran"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBl0ZiTeB-iWg52skuD30jZVkpEvvdD9po"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
