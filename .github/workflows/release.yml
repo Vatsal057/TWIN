@@ -1,0 +1,71 @@
+name: Release
+
+# Cuts a release when a v* tag is pushed, and attaches an APK so people can
+# install the game without a Flutter toolchain.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  android:
+    name: Build APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          # Same pin as ci.yml. The pubspec's Firebase set is tied to this SDK,
+          # so the two have to move together.
+          flutter-version: '3.41.5'
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - name: Build release APK
+        run: flutter build apk --release
+
+      - name: Name the artifact after the tag
+        id: rename
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          SRC=build/app/outputs/flutter-apk/app-release.apk
+          test -f "$SRC" || { echo "APK missing at $SRC"; exit 1; }
+          OUT="TWIN-${VERSION}.apk"
+          mv "$SRC" "$OUT"
+          echo "apk=$OUT" >> "$GITHUB_OUTPUT"
+          ls -lh "$OUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: twin-apk
+          path: ${{ steps.rename.outputs.apk }}
+
+      - name: Attach to the release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.rename.outputs.apk }}
+          generate_release_notes: true
+          body: |
+            **Play in a browser instead:** https://twinnn.web.app — no install, and
+            it is the same code.
+
+            ### Installing the APK
+            The build is signed with Flutter's debug key, so Android will warn you
+            and you will need to allow installs from unknown sources. If you would
+            rather not, use the web version above; the game needs two people
+            either way.
+
+            ### It takes two
+            Anonymous auth gives each device one identity, so open the link on two
+            devices, or in two different browsers.
