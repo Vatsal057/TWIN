@@ -119,9 +119,7 @@ class _TwinningBurstState extends State<TwinningBurst>
           return Stack(
             fit: StackFit.expand,
             children: [
-              ColoredBox(
-                color: AppTheme.ink.withValues(alpha: 0.9 * backdrop),
-              ),
+              ColoredBox(color: AppTheme.ink.withValues(alpha: 0.9 * backdrop)),
               if (flash > 0.001)
                 ColoredBox(
                   color: AppTheme.convergedBright.withValues(alpha: flash),
@@ -230,10 +228,7 @@ class _Glyph extends StatelessWidget {
               height: 1,
               color: color,
               shadows: [
-                Shadow(
-                  color: color.withValues(alpha: 0.5),
-                  blurRadius: 40,
-                ),
+                Shadow(color: color.withValues(alpha: 0.5), blurRadius: 40),
               ],
             ),
           ),
