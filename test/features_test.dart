@@ -3,7 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:twin/core/game_config.dart';
 import 'package:twin/models/friend.dart';
+import 'package:twin/models/game_round.dart';
 import 'package:twin/models/room.dart';
+import 'package:twin/ui/widgets/victory_card.dart';
 import 'package:twin/ui/widgets/word_composer.dart';
 import 'package:twin/services/backend/local_backend.dart';
 import 'package:twin/services/daily_twin_service.dart';
@@ -218,6 +220,92 @@ void main() {
       await tester.tap(find.text('Lock it in'));
       await tester.pump();
       expect(submittedWord, 'galaxy');
+    });
+
+    testWidgets('VictoryCard displays twinned word, players, and resonance score', (tester) async {
+      final room = Room(
+        code: 'SYNC1',
+        hostId: 'p1',
+        players: const ['p1', 'p2'],
+        playerNames: const {'p1': 'Alice', 'p2': 'Bob'},
+        status: RoomStatus.finished,
+        finishReason: FinishReason.converged,
+        config: GameConfig.defaults,
+        currentRound: 3,
+        submittedBy: const ['p1', 'p2'],
+        rounds: const [
+          GameRound(index: 1, p1Word: 'coffee', p2Word: 'sleep', matched: false),
+          GameRound(index: 2, p1Word: 'morning', p2Word: 'wake', matched: false),
+          GameRound(index: 3, p1Word: 'espresso', p2Word: 'espresso', matched: true),
+        ],
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: VictoryCard(
+              room: room,
+              localName: 'Alice',
+              opponentName: 'Bob',
+              localIsP1: true,
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('TWIN'), findsOneWidget);
+      expect(find.text('Alice'), findsOneWidget);
+      expect(find.text('Bob'), findsOneWidget);
+      expect(find.text('ESPRESSO'), findsNWidgets(2));
+      expect(find.text('YOU BOTH SAID'), findsOneWidget);
+      expect(find.text('TWINNED IN 3 ROUNDS'), findsOneWidget);
+      expect(find.text('Think you can twin? →'), findsOneWidget);
+      expect(find.text('twinnn.web.app'), findsOneWidget);
+    });
+
+    testWidgets('VictoryCard scales trajectory dynamically for long games (15 rounds)', (tester) async {
+      final rounds = List.generate(
+        15,
+        (i) => GameRound(
+          index: i + 1,
+          p1Word: i == 14 ? 'espresso' : 'wordA$i',
+          p2Word: i == 14 ? 'espresso' : 'wordB$i',
+          matched: i == 14,
+        ),
+      );
+
+      final room = Room(
+        code: 'SYNC15',
+        hostId: 'p1',
+        players: const ['p1', 'p2'],
+        playerNames: const {'p1': 'Alice', 'p2': 'Bob'},
+        status: RoomStatus.finished,
+        finishReason: FinishReason.converged,
+        config: GameConfig.defaults,
+        currentRound: 15,
+        submittedBy: const ['p1', 'p2'],
+        rounds: rounds,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: VictoryCard(
+              room: room,
+              localName: 'Alice',
+              opponentName: 'Bob',
+              localIsP1: true,
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('TWINNED IN 15 ROUNDS'), findsOneWidget);
+      expect(find.text('⋮'), findsOneWidget);
+      expect(find.text('Worda0 · Wordb0'), findsOneWidget);
+      expect(find.text('Worda1 · Wordb1'), findsOneWidget);
+      expect(find.text('Worda13 · Wordb13'), findsOneWidget);
+      expect(find.text('ESPRESSO'), findsNWidgets(2));
     });
   });
 }

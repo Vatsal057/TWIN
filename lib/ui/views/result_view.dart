@@ -13,6 +13,7 @@ import '../room_launcher.dart';
 import '../widgets/convergence_hero.dart';
 import '../widgets/round_history.dart';
 import '../widgets/section_label.dart';
+import '../widgets/victory_card.dart';
 
 /// The sync screen.
 ///
@@ -215,10 +216,22 @@ class _Actions extends StatelessWidget {
             label: const Text('Play again'),
           ),
         const SizedBox(height: 12),
+        FilledButton.tonalIcon(
+          onPressed: () => VictoryCardSheet.show(
+            context,
+            room: room,
+            localName: game.localName,
+            opponentName: game.opponentName,
+            localIsP1: game.localPlayerId == room.p1Id,
+          ),
+          icon: const Icon(Icons.photo_camera_back_outlined, size: 18),
+          label: const Text('Share Victory Card'),
+        ),
+        const SizedBox(height: 10),
         OutlinedButton.icon(
           onPressed: () => _shareResult(game, room),
-          icon: const Icon(Icons.ios_share_rounded, size: 18),
-          label: const Text('Share result'),
+          icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
+          label: const Text('Share text recap'),
         ),
         const SizedBox(height: 12),
         TextButton(
