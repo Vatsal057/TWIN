@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:twin/core/game_config.dart';
+import 'package:twin/models/room.dart';
 import 'package:twin/services/deep_link_service.dart';
 
 void main() {
@@ -82,6 +83,54 @@ void main() {
 
       expect(msg, contains('Charlie challenged you to a Food & Drink TWIN!'));
       expect(msg, contains('ABCDE'));
+    });
+  });
+
+  group('Room Nudge and Rematch Lifecycle Tests', () {
+    test('Room serializes and deserializes lastNudge cleanly', () {
+      final now = DateTime.now();
+      final room = Room(
+        code: 'TEST1',
+        hostId: 'user1',
+        players: ['user1'],
+        playerNames: {'user1': 'Alice'},
+        status: RoomStatus.waiting,
+        config: GameConfig.defaults,
+        currentRound: 1,
+        submittedBy: const [],
+        rounds: const [],
+        lastNudgeBy: 'user1',
+        lastNudgeAt: now,
+      );
+
+      final map = room.toMap();
+      expect(map['lastNudgeBy'], 'user1');
+      expect(map['lastNudgeAt'], isNotNull);
+
+      final revived = Room.fromMap('TEST1', map);
+      expect(revived.lastNudgeBy, 'user1');
+      expect(revived.lastNudgeAt, isNotNull);
+    });
+
+    test('Room copyWith updates rematchRoomCode and nudge', () {
+      final room = Room(
+        code: 'TEST1',
+        hostId: 'user1',
+        players: ['user1'],
+        playerNames: {'user1': 'Alice'},
+        status: RoomStatus.waiting,
+        config: GameConfig.defaults,
+        currentRound: 1,
+        submittedBy: const [],
+        rounds: const [],
+      );
+
+      final updated = room.copyWith(
+        rematchRoomCode: 'NEXT1',
+        lastNudgeBy: 'user2',
+      );
+      expect(updated.rematchRoomCode, 'NEXT1');
+      expect(updated.lastNudgeBy, 'user2');
     });
   });
 }

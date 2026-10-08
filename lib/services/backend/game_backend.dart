@@ -84,6 +84,9 @@ abstract class GameBackend {
   /// Creates a fresh room and points [code] at it so the opponent can follow.
   Future<Room> startRematch(Room room);
 
+  /// Pings the opponent in [code] when waiting for their turn.
+  Future<void> nudgeRoom(String code);
+
   // ---- chat ----
 
   Stream<List<ChatMessage>> watchMessages(String code);

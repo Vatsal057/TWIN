@@ -51,6 +51,59 @@ class ResultView extends StatelessWidget {
                 word: converged ? finalRound?.p1Word : null,
                 rounds: room.rounds.length,
               ),
+              if (room.rematchRoomCode case final rematchCode?) ...[
+                const SizedBox(height: 20),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppTheme.converged.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: AppTheme.converged.withValues(alpha: 0.35),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.replay_rounded,
+                        color: AppTheme.converged,
+                        size: 22,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          '${game.opponentName} wants a rematch!',
+                          style: const TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.parchment,
+                          ),
+                        ),
+                      ),
+                      FilledButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          RoomLauncher.joinAndOpen(
+                            context,
+                            context.read<AppSession>(),
+                            rematchCode,
+                          );
+                        },
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppTheme.converged,
+                          foregroundColor: AppTheme.ink,
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                        ),
+                        child: const Text('Accept'),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 24),
               _Players(game: game, room: room),
               const SizedBox(height: 28),

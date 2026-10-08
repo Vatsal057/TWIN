@@ -11,6 +11,9 @@ to what you need.
 | [04 — How it works inside](04-how-it-works-inside.md) | The parts of the code and why they're arranged that way |
 | [05 — Problems we hit](05-problems-we-hit.md) | Real bugs, what caused them, how they were fixed |
 | [06 — Changing things](06-changing-things.md) | Common edits: round limits, word list, your own domain |
+| [07 — Product Requirements Document (PRD)](07-product-requirements-document.md) | Personas, user stories, game mechanics, metrics, and monetization |
+| [08 — Technical Requirements Document (TRD)](08-technical-requirements-document.md) | System architecture, Firestore schema, state machines, TTL, and FCM |
+| [09 — Features Registry & Roadmap](09-features-roadmap.md) | Master feature matrix, implementation status, and phased plan |
 
 ## The 30-second version
 

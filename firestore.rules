@@ -79,11 +79,14 @@ service cloud.firestore {
       allow delete: if false;
 
       match /submissions/{submissionId} {
-        // Own submission, always. Opponent's only once the round is locked.
+        // Own submission always; opponent's once round is locked or already resolved.
         allow get: if isPlayerIn(code)
-          && (submissionId.split('_')[1] == request.auth.uid || roundLocked(code));
+          && (submissionId.split('_')[1] == request.auth.uid
+              || roundLocked(code)
+              || int(submissionId.split('_')[0]) < roomData(code).currentRound);
 
-        allow list: if isPlayerIn(code) && roundLocked(code);
+        allow list: if isPlayerIn(code)
+          && (roundLocked(code) || resource.data.roundIndex < roomData(code).currentRound);
 
         // Write only your own doc, for the round in progress, and only once —
         // no changing your word after seeing the opponent's.

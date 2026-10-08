@@ -53,6 +53,8 @@ class Room {
     this.updatedAt,
     this.rematchOf,
     this.rematchRoomCode,
+    this.lastNudgeBy,
+    this.lastNudgeAt,
   });
 
   final String code;
@@ -86,6 +88,9 @@ class Room {
 
   /// Set once one player starts a rematch, so the other can follow.
   final String? rematchRoomCode;
+
+  final String? lastNudgeBy;
+  final DateTime? lastNudgeAt;
 
   String get p1Id => players.isNotEmpty ? players[0] : '';
   String? get p2Id => players.length > 1 ? players[1] : null;
@@ -143,6 +148,8 @@ class Room {
     'finishReason': finishReason?.wireName,
     'rematchOf': rematchOf,
     'rematchRoomCode': rematchRoomCode,
+    'lastNudgeBy': lastNudgeBy,
+    'lastNudgeAt': lastNudgeAt?.toIso8601String(),
   };
 
   factory Room.fromMap(String code, Map<String, Object?> map) {
@@ -170,7 +177,19 @@ class Room {
       finishReason: FinishReasonCodec.fromWire(map['finishReason']),
       rematchOf: map['rematchOf'] as String?,
       rematchRoomCode: map['rematchRoomCode'] as String?,
+      lastNudgeBy: map['lastNudgeBy'] as String?,
+      lastNudgeAt: _parseDateTime(map['lastNudgeAt']),
     );
+  }
+
+  static DateTime? _parseDateTime(Object? v) {
+    if (v == null) return null;
+    if (v is DateTime) return v;
+    try {
+      final dynamic dyn = v;
+      return dyn.toDate() as DateTime;
+    } catch (_) {}
+    return DateTime.tryParse(v.toString());
   }
 
   Room copyWith({
@@ -183,6 +202,8 @@ class Room {
     List<GameRound>? rounds,
     FinishReason? finishReason,
     String? rematchRoomCode,
+    String? lastNudgeBy,
+    DateTime? lastNudgeAt,
   }) {
     return Room(
       code: code,
@@ -199,6 +220,8 @@ class Room {
       updatedAt: updatedAt,
       rematchOf: rematchOf,
       rematchRoomCode: rematchRoomCode ?? this.rematchRoomCode,
+      lastNudgeBy: lastNudgeBy ?? this.lastNudgeBy,
+      lastNudgeAt: lastNudgeAt ?? this.lastNudgeAt,
     );
   }
 }

@@ -40,6 +40,20 @@ class GameView extends StatelessWidget {
     final localIsP1 = game.localPlayerId == room.p1Id;
     final reveal = game.revealingRound;
 
+    final nudgeAlert = game.consumeNudgeAlert();
+    if (nudgeAlert != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(nudgeAlert),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      });
+    }
+
     return Scaffold(
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
@@ -437,6 +451,29 @@ class _Committed extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: 16),
+          if (game.canNudge)
+            OutlinedButton.icon(
+              onPressed: game.sendNudge,
+              icon: const Icon(Icons.touch_app_rounded, size: 16),
+              label: Text('Nudge ${game.opponentName}'),
+              style: OutlinedButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
+              ),
+            )
+          else if (game.isNudgeCooldown)
+            Text(
+              'Nudged ${game.opponentName}',
+              style: TextStyle(
+                fontSize: 12,
+                fontStyle: FontStyle.italic,
+                color: AppTheme.parchment.withValues(alpha: 0.5),
+              ),
+            ),
         ],
       ),
     );

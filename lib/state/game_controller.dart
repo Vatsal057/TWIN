@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 
 import '../core/word_utils.dart';
 import '../game/game_engine.dart';
@@ -42,6 +43,8 @@ class GameController extends ChangeNotifier {
 
   StreamSubscription<Room>? _roomSub;
   Timer? _revealTimer;
+  Timer? _fallbackCommitTimer;
+  Timer? _recoveryPollingTimer;
 
   Room? _room;
   String? _errorMessage;
@@ -55,6 +58,10 @@ class GameController extends ChangeNotifier {
   /// The word this player locked in for the current round, kept locally so the
   /// waiting state can show it without breaking submission privacy.
   String? _myPendingWord;
+
+  DateTime? _lastNudgeSent;
+  DateTime? _lastNudgeReceivedHandled;
+  String? _incomingNudgeAlert;
 
   int _seenRoundCount = 0;
 
@@ -114,6 +121,35 @@ class GameController extends ChangeNotifier {
     notifyListeners();
   }
 
+  bool get canNudge {
+    if (stage != ViewStage.waitingForOpponent) return false;
+    final last = _lastNudgeSent;
+    return last == null || DateTime.now().difference(last).inSeconds >= 15;
+  }
+
+  bool get isNudgeCooldown {
+    final last = _lastNudgeSent;
+    return last != null && DateTime.now().difference(last).inSeconds < 15;
+  }
+
+  String? consumeNudgeAlert() {
+    final alert = _incomingNudgeAlert;
+    _incomingNudgeAlert = null;
+    return alert;
+  }
+
+  Future<void> sendNudge() async {
+    if (!canNudge) return;
+    _lastNudgeSent = DateTime.now();
+    notifyListeners();
+    try {
+      await _backend.nudgeRoom(_roomCode);
+      HapticFeedback.lightImpact();
+    } catch (e) {
+      debugPrint('nudge error: $e');
+    }
+  }
+
   void _onRoom(Room room) {
     final previous = _room;
     _room = room;
@@ -122,6 +158,19 @@ class GameController extends ChangeNotifier {
       _beginReveal(room.rounds.last);
       _seenRoundCount = room.rounds.length;
       _myPendingWord = null;
+    }
+
+    // React to incoming nudges from opponent
+    if (room.lastNudgeBy != null &&
+        room.lastNudgeBy != localPlayerId &&
+        room.lastNudgeAt != null) {
+      final handled = _lastNudgeReceivedHandled;
+      if (handled == null || room.lastNudgeAt!.isAfter(handled)) {
+        _lastNudgeReceivedHandled = room.lastNudgeAt;
+        _incomingNudgeAlert = '$opponentName gave you a nudge!';
+        HapticFeedback.mediumImpact();
+        SystemSound.play(SystemSoundType.alert);
+      }
     }
 
     // Both players are in for the first time: persist the pairing.
@@ -139,16 +188,50 @@ class GameController extends ChangeNotifier {
       _errorMessage = null;
     }
 
+    if (stage == ViewStage.waitingForOpponent) {
+      _startRecoveryPollingIfNeeded();
+    } else {
+      _stopRecoveryPolling();
+    }
+
     _maybeCommitRound(room);
     notifyListeners();
   }
 
-  /// Attempt to resolve the round once both words are in. Safe to call
-  /// repeatedly; the backend drops duplicate commits.
+  /// Attempt to resolve the round once both words are in.
+  ///
+  /// The host acts as the primary resolver and commits immediately.
+  /// The guest waits 2.5s as a fallback so both clients never fight for
+  /// the same transaction, preventing Firestore transaction retry storms and
+  /// write pipeline lockups.
   void _maybeCommitRound(Room room) {
-    if (_committing || !room.isReadyToReveal) return;
-    _committing = true;
+    if (!room.isReadyToReveal) {
+      _fallbackCommitTimer?.cancel();
+      _fallbackCommitTimer = null;
+      return;
+    }
+
     final roundIndex = room.currentRound;
+    if (room.rounds.length >= roundIndex) return;
+
+    if (isHost) {
+      _executeCommit(roundIndex);
+    } else {
+      _fallbackCommitTimer?.cancel();
+      _fallbackCommitTimer = Timer(const Duration(milliseconds: 2500), () {
+        final currentRoom = _room;
+        if (currentRoom != null &&
+            currentRoom.isReadyToReveal &&
+            currentRoom.rounds.length < roundIndex) {
+          _executeCommit(roundIndex);
+        }
+      });
+    }
+  }
+
+  void _executeCommit(int roundIndex) {
+    if (_committing) return;
+    _committing = true;
     _backend
         .commitRound(
           code: _roomCode,
@@ -166,6 +249,34 @@ class GameController extends ChangeNotifier {
         .whenComplete(() {
           _committing = false;
         });
+  }
+
+  void _startRecoveryPollingIfNeeded() {
+    if (_recoveryPollingTimer != null && _recoveryPollingTimer!.isActive) return;
+    _recoveryPollingTimer = Timer.periodic(
+      const Duration(milliseconds: 2000),
+      (_) async {
+        if (stage != ViewStage.waitingForOpponent) {
+          _stopRecoveryPolling();
+          return;
+        }
+        try {
+          final fresh = await _backend.fetchRoom(_roomCode);
+          if (fresh != null) {
+            if (fresh.rounds.length > _seenRoundCount || fresh.isReadyToReveal) {
+              _onRoom(fresh);
+            }
+          }
+        } catch (e) {
+          debugPrint('Recovery poll error: $e');
+        }
+      },
+    );
+  }
+
+  void _stopRecoveryPolling() {
+    _recoveryPollingTimer?.cancel();
+    _recoveryPollingTimer = null;
   }
 
   Future<bool> submitWord(String raw) async {
@@ -194,6 +305,7 @@ class GameController extends ChangeNotifier {
         word: word,
       );
       _myPendingWord = word;
+      _startRecoveryPollingIfNeeded();
       return true;
     } on BackendException catch (e) {
       _errorMessage = e.message;
@@ -245,6 +357,8 @@ class GameController extends ChangeNotifier {
   void dispose() {
     _revealTimer?.cancel();
     _roomSub?.cancel();
+    _fallbackCommitTimer?.cancel();
+    _stopRecoveryPolling();
     super.dispose();
   }
 }

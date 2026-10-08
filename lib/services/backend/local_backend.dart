@@ -264,6 +264,13 @@ class LocalBackend implements GameBackend {
     return fresh;
   }
 
+  @override
+  Future<void> nudgeRoom(String code) async {
+    final room = _rooms[code];
+    if (room == null) return;
+    _publish(room.copyWith(lastNudgeBy: _uid, lastNudgeAt: DateTime.now()));
+  }
+
   // ----------------------------------------------------------------- chat
 
   @override

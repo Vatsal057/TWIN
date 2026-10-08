@@ -150,7 +150,17 @@ class FirestoreBackend implements GameBackend {
       final created = await _guard(
         () => _db.runTransaction<bool>((tx) async {
           final snap = await tx.get(ref);
-          if (snap.exists) return false;
+          if (snap.exists) {
+            final data = snap.data();
+            final status = data?['status'] as String?;
+            final updated = _toDate(data?['updatedAt']);
+            final isStale =
+                updated != null &&
+                DateTime.now().difference(updated).inHours >= 2 &&
+                (status == RoomStatus.finished.wireName ||
+                    status == FinishReason.abandoned.wireName);
+            if (!isStale) return false;
+          }
           tx.set(ref, {
             'code': code,
             'hostId': _uid,
@@ -341,15 +351,20 @@ class FirestoreBackend implements GameBackend {
   ) async {
     final p2 = room.p2Id;
     if (p2 == null) return null;
-    final results = await Future.wait([
-      _submissions(room.code).doc(submissionId(roundIndex, room.p1Id)).get(),
-      _submissions(room.code).doc(submissionId(roundIndex, p2)).get(),
-    ]);
-    if (!results[0].exists || !results[1].exists) return null;
-    final p1Word = (results[0].data()?['word'] as String?) ?? '';
-    final p2Word = (results[1].data()?['word'] as String?) ?? '';
-    if (p1Word.isEmpty || p2Word.isEmpty) return null;
-    return (p1Word: p1Word, p2Word: p2Word);
+    try {
+      final results = await Future.wait([
+        _submissions(room.code).doc(submissionId(roundIndex, room.p1Id)).get(),
+        _submissions(room.code).doc(submissionId(roundIndex, p2)).get(),
+      ]);
+      if (!results[0].exists || !results[1].exists) return null;
+      final p1Word = (results[0].data()?['word'] as String?) ?? '';
+      final p2Word = (results[1].data()?['word'] as String?) ?? '';
+      if (p1Word.isEmpty || p2Word.isEmpty) return null;
+      return (p1Word: p1Word, p2Word: p2Word);
+    } catch (e) {
+      debugPrint('readSubmissions exception: $e');
+      return null;
+    }
   }
 
   @override
@@ -368,31 +383,32 @@ class FirestoreBackend implements GameBackend {
     if (words == null) return; // opponent has not landed yet
 
     final ref = _room(code);
-    await _db.runTransaction((tx) async {
-      final snap = await tx.get(ref);
-      if (!snap.exists) return;
-      final fresh = Room.fromMap(code, snap.data()!);
+    try {
+      await _db.runTransaction((tx) async {
+        final snap = await tx.get(ref);
+        if (!snap.exists) return;
+        final fresh = Room.fromMap(code, snap.data()!);
 
-      // Both clients race to commit; whoever loses sees the round already
-      // present and backs out. The outcome is plain string equality, so either
-      // winner writes identical history.
-      if (fresh.rounds.length >= roundIndex) return;
+        if (fresh.rounds.length >= roundIndex) return;
 
-      final resolution = resolve(fresh, words.p1Word, words.p2Word);
-      final history = [
-        ...fresh.rounds.map((r) => r.toMap()),
-        resolution.round.toMap(),
-      ];
+        final resolution = resolve(fresh, words.p1Word, words.p2Word);
+        final history = [
+          ...fresh.rounds.map((r) => r.toMap()),
+          resolution.round.toMap(),
+        ];
 
-      tx.update(ref, {
-        'rounds': history,
-        'status': resolution.status.wireName,
-        'currentRound': resolution.nextRound,
-        'submittedBy': <String>[],
-        'finishReason': resolution.finishReason?.wireName,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-    });
+        tx.update(ref, {
+          'rounds': history,
+          'status': resolution.status.wireName,
+          'currentRound': resolution.nextRound,
+          'submittedBy': <String>[],
+          'finishReason': resolution.finishReason?.wireName,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }, timeout: const Duration(seconds: 4));
+    } catch (error) {
+      debugPrint('commitRound transaction aborted or timed out: $error');
+    }
   }
 
   @override
@@ -430,11 +446,24 @@ class FirestoreBackend implements GameBackend {
     return fresh;
   }
 
+  @override
+  Future<void> nudgeRoom(String code) async {
+    _requireAuth();
+    await _guard(
+      () => _room(code).update({
+        'lastNudgeBy': _uid,
+        'lastNudgeAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }),
+      'Could not send nudge.',
+    );
+  }
+
   // ----------------------------------------------------------------- chat
 
   @override
   Stream<List<ChatMessage>> watchMessages(String code) {
-    return _messages(code).orderBy('sentAt').limit(500).snapshots().map((snap) {
+    return _messages(code).orderBy('clientSentAt').limit(500).snapshots().map((snap) {
       final messages = snap.docs.map((doc) {
         final data = doc.data();
         return ChatMessage(
