@@ -46,7 +46,7 @@ class HomeScreen extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 28),
-              _PlayerNameField(session: session),
+              _PlayerProfileTile(session: session),
               if (session.backendFallbackReason != null) ...[
                 const SizedBox(height: 16),
                 _OfflineNotice(message: session.backendFallbackReason!),
@@ -68,24 +68,15 @@ class HomeScreen extends StatelessWidget {
                         );
                       },
                       icon: const Icon(Icons.add_circle_outline, size: 18),
-                      label: const Text('Create'),
+                      label: const Text('Create room'),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: FilledButton.tonalIcon(
-                      onPressed: () =>
-                          RoomLauncher.quickPlayAndOpen(context, session),
-                      icon: const Icon(Icons.flash_on_rounded, size: 18),
-                      label: const Text('Quick 1v1'),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: () => _showJoinSheet(context, session),
                       icon: const Icon(Icons.login_rounded, size: 18),
-                      label: const Text('Join'),
+                      label: const Text('Join room'),
                     ),
                   ),
                 ],
@@ -116,42 +107,140 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-class _PlayerNameField extends StatefulWidget {
-  const _PlayerNameField({required this.session});
+class _PlayerProfileTile extends StatelessWidget {
+  const _PlayerProfileTile({required this.session});
 
   final AppSession session;
 
-  @override
-  State<_PlayerNameField> createState() => _PlayerNameFieldState();
-}
-
-class _PlayerNameFieldState extends State<_PlayerNameField> {
-  late final TextEditingController _controller = TextEditingController(
-    text: widget.session.displayName,
-  );
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
+  static void _showEditName(BuildContext context, AppSession session) {
+    final controller = TextEditingController(text: session.displayName);
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppTheme.inkRaised,
+      constraints: const BoxConstraints(maxWidth: Layout.contentMaxWidth),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.fromLTRB(
+          24,
+          24,
+          24,
+          24 + MediaQuery.viewInsetsOf(sheetContext).bottom,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SectionLabel('Your display name'),
+            const SizedBox(height: 8),
+            Text(
+              'How your name appears to friends and on shared results.',
+              style: TextStyle(
+                color: AppTheme.parchment.withValues(alpha: 0.6),
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 18),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              textCapitalization: TextCapitalization.words,
+              textInputAction: TextInputAction.done,
+              maxLength: 20,
+              onSubmitted: (val) {
+                final trimmed = val.trim();
+                if (trimmed.isNotEmpty) {
+                  session.setDisplayName(trimmed);
+                }
+                Navigator.of(sheetContext).pop();
+              },
+              decoration: const InputDecoration(
+                hintText: 'Your name',
+                counterText: '',
+                prefixIcon: Icon(Icons.person_outline),
+              ),
+            ),
+            const SizedBox(height: 18),
+            FilledButton(
+              onPressed: () {
+                final trimmed = controller.text.trim();
+                if (trimmed.isNotEmpty) {
+                  session.setDisplayName(trimmed);
+                }
+                Navigator.of(sheetContext).pop();
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      controller: _controller,
-      textCapitalization: TextCapitalization.words,
-      textInputAction: TextInputAction.done,
-      maxLength: 20,
-      onSubmitted: widget.session.setDisplayName,
-      onTapOutside: (_) {
-        FocusScope.of(context).unfocus();
-        widget.session.setDisplayName(_controller.text);
-      },
-      decoration: const InputDecoration(
-        labelText: 'Your name',
-        counterText: '',
-        prefixIcon: Icon(Icons.person_outline),
+    final name = session.displayName;
+    final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
+
+    return InkWell(
+      onTap: () => _showEditName(context, session),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppTheme.inkCard,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: AppTheme.seed.withValues(alpha: 0.2),
+          ),
+        ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 18,
+              backgroundColor: AppTheme.seed.withValues(alpha: 0.16),
+              child: Text(
+                initial,
+                style: const TextStyle(
+                  color: AppTheme.seed,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.parchment,
+                    ),
+                  ),
+                  const SizedBox(height: 1),
+                  Text(
+                    'Tap to edit display name',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: AppTheme.parchment.withValues(alpha: 0.5),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.edit_outlined,
+              size: 16,
+              color: AppTheme.parchment.withValues(alpha: 0.4),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -55,7 +55,6 @@ class Room {
     this.rematchRoomCode,
     this.lastNudgeBy,
     this.lastNudgeAt,
-    this.isPublic = false,
   });
 
   final String code;
@@ -92,7 +91,6 @@ class Room {
 
   final String? lastNudgeBy;
   final DateTime? lastNudgeAt;
-  final bool isPublic;
 
   String get p1Id => players.isNotEmpty ? players[0] : '';
   String? get p2Id => players.length > 1 ? players[1] : null;
@@ -152,7 +150,6 @@ class Room {
     'rematchRoomCode': rematchRoomCode,
     'lastNudgeBy': lastNudgeBy,
     'lastNudgeAt': lastNudgeAt?.toIso8601String(),
-    'isPublic': isPublic,
   };
 
   factory Room.fromMap(String code, Map<String, Object?> map) {
@@ -182,7 +179,6 @@ class Room {
       rematchRoomCode: map['rematchRoomCode'] as String?,
       lastNudgeBy: map['lastNudgeBy'] as String?,
       lastNudgeAt: _parseDateTime(map['lastNudgeAt']),
-      isPublic: (map['isPublic'] as bool?) ?? false,
     );
   }
 
@@ -208,7 +204,6 @@ class Room {
     String? rematchRoomCode,
     String? lastNudgeBy,
     DateTime? lastNudgeAt,
-    bool? isPublic,
   }) {
     return Room(
       code: code,
@@ -227,7 +222,6 @@ class Room {
       rematchRoomCode: rematchRoomCode ?? this.rematchRoomCode,
       lastNudgeBy: lastNudgeBy ?? this.lastNudgeBy,
       lastNudgeAt: lastNudgeAt ?? this.lastNudgeAt,
-      isPublic: isPublic ?? this.isPublic,
     );
   }
 }

@@ -36,7 +36,7 @@ class LobbyView extends StatelessWidget {
                 const SizedBox(height: 12),
                 const SectionLabel('Room code'),
                 const SizedBox(height: 16),
-                _CodeCard(code: code),
+                _CodeCard(code: code, onTap: () => _copy(context, code)),
                 if (game.room?.config case final config?) ...[
                   if (config.hasCustomStart) ...[
                     const SizedBox(height: 14),
@@ -97,14 +97,7 @@ class LobbyView extends StatelessWidget {
                 Row(
                   children: [
                     Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => _copy(context, code),
-                        icon: const Icon(Icons.copy_rounded, size: 18),
-                        label: const Text('Copy'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
+                      flex: 3,
                       child: FilledButton.icon(
                         onPressed: () => _share(
                           code,
@@ -112,28 +105,30 @@ class LobbyView extends StatelessWidget {
                           config: game.room?.config,
                         ),
                         icon: const Icon(Icons.ios_share_rounded, size: 18),
-                        label: const Text('Share'),
+                        label: const Text('Share invite'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      flex: 2,
+                      child: FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xFF25D366),
+                          foregroundColor: Colors.white,
+                        ),
+                        onPressed: () => _shareWhatsApp(
+                          code,
+                          session.displayName,
+                          config: game.room?.config,
+                        ),
+                        icon: const Icon(
+                          Icons.chat_bubble_outline_rounded,
+                          size: 16,
+                        ),
+                        label: const Text('WhatsApp'),
                       ),
                     ),
                   ],
-                ),
-                const SizedBox(height: 10),
-                FilledButton.icon(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF25D366),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 13),
-                  ),
-                  onPressed: () => _shareWhatsApp(
-                    code,
-                    session.displayName,
-                    config: game.room?.config,
-                  ),
-                  icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
-                  label: const Text(
-                    'Invite via WhatsApp',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
                 ),
                 const SizedBox(height: 14),
                 _LinkRow(code: code),
@@ -217,36 +212,64 @@ class LobbyView extends StatelessWidget {
 }
 
 class _CodeCard extends StatelessWidget {
-  const _CodeCard({required this.code});
+  const _CodeCard({required this.code, required this.onTap});
 
   final String code;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 28),
-      decoration: BoxDecoration(
-        color: AppTheme.inkCard,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppTheme.seed.withValues(alpha: 0.22)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          for (final char in code.split(''))
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 5),
-              child: Text(
-                char,
-                style: const TextStyle(
-                  fontSize: 38,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.seed,
-                  height: 1,
-                ),
-              ),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 22),
+        decoration: BoxDecoration(
+          color: AppTheme.inkCard,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppTheme.seed.withValues(alpha: 0.22)),
+        ),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                for (final char in code.split(''))
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 5),
+                    child: Text(
+                      char,
+                      style: const TextStyle(
+                        fontSize: 38,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.seed,
+                        height: 1,
+                      ),
+                    ),
+                  ),
+              ],
             ),
-        ],
+            const SizedBox(height: 8),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.copy_rounded,
+                  size: 13,
+                  color: AppTheme.parchment.withValues(alpha: 0.5),
+                ),
+                const SizedBox(width: 5),
+                Text(
+                  'Tap code to copy',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppTheme.parchment.withValues(alpha: 0.5),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

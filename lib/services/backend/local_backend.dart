@@ -111,7 +111,6 @@ class LocalBackend implements GameBackend {
   Future<Room> createRoom({
     GameConfig config = GameConfig.defaults,
     String? rematchOf,
-    bool isPublic = false,
   }) async {
     var code = RoomCode.generate();
     while (_rooms.containsKey(code)) {
@@ -129,7 +128,6 @@ class LocalBackend implements GameBackend {
       rounds: const [],
       rematchOf: rematchOf,
       createdAt: DateTime.now(),
-      isPublic: isPublic,
     );
     _rooms[code] = room;
     _submissions[code] = {};
@@ -376,11 +374,6 @@ class LocalBackend implements GameBackend {
     await _persistFriends();
     _emitFriends();
   }
-
-  @override
-  Future<Room> findOrCreateQuickPlayRoom({
-    GameConfig config = GameConfig.defaults,
-  }) => createRoom(config: config, isPublic: true);
 
   @override
   Future<void> forgetFriend(String friendId) async {

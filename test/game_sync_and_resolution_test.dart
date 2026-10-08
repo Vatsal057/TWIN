@@ -46,7 +46,6 @@ class MockBackend implements GameBackend {
   Future<Room> createRoom({
     GameConfig config = GameConfig.defaults,
     String? rematchOf,
-    bool isPublic = false,
   }) async {
     throw UnimplementedError();
   }
@@ -121,11 +120,6 @@ class MockBackend implements GameBackend {
     required bool converged,
     String? convergedWord,
   }) async {}
-
-  @override
-  Future<Room> findOrCreateQuickPlayRoom({
-    GameConfig config = GameConfig.defaults,
-  }) async => throw UnimplementedError();
 
   @override
   Stream<List<GameInvite>> watchInvites() => const Stream.empty();

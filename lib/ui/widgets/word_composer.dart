@@ -36,7 +36,10 @@ class _WordComposerState extends State<WordComposer> {
 
   Future<void> _submit() async {
     if (!widget.enabled || widget.isSubmitting) return;
-    final ok = await widget.onSubmit(_controller.text);
+    final text = _controller.text.trim();
+    if (text.isEmpty) return;
+    HapticFeedback.lightImpact();
+    final ok = await widget.onSubmit(text);
     if (ok && mounted) {
       _controller.clear();
       _focus.unfocus();

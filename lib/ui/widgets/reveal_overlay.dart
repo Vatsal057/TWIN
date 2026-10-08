@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../models/game_round.dart';
 import '../app_theme.dart';
@@ -31,6 +32,12 @@ class _RevealOverlayState extends State<RevealOverlay>
     vsync: this,
     duration: const Duration(milliseconds: 900),
   )..forward();
+
+  @override
+  void initState() {
+    super.initState();
+    HapticFeedback.selectionClick();
+  }
 
   late final Animation<double> _slide = CurvedAnimation(
     parent: _controller,

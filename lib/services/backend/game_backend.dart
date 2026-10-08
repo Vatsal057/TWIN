@@ -48,7 +48,6 @@ abstract class GameBackend {
   Future<Room> createRoom({
     GameConfig config = GameConfig.defaults,
     String? rematchOf,
-    bool isPublic = false,
   });
 
   /// Joins an existing waiting room and flips it to `status: active`.
@@ -125,9 +124,6 @@ abstract class GameBackend {
     required bool converged,
     String? convergedWord,
   });
-
-  /// Quick Play matchmaking: joins an existing open public room or creates one.
-  Future<Room> findOrCreateQuickPlayRoom({GameConfig config = GameConfig.defaults});
 
   /// Invites addressed to the local player.
   Stream<List<GameInvite>> watchInvites();

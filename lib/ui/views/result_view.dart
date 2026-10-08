@@ -1,8 +1,6 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/word_utils.dart';
 import '../../models/room.dart';
@@ -116,10 +114,6 @@ class ResultView extends StatelessWidget {
                 p1Id: room.p1Id,
                 localPlayerId: game.localPlayerId,
               ),
-              if (kIsWeb) ...[
-                const SizedBox(height: 24),
-                const _WebApkBanner(),
-              ],
               const SizedBox(height: 32),
               _Actions(game: game, room: room),
             ],
@@ -277,78 +271,6 @@ class _Actions extends StatelessWidget {
         subject: room.converged
             ? 'We scored $score% Resonance on TWIN!'
             : 'Play TWIN with me',
-      ),
-    );
-  }
-}
-
-class _WebApkBanner extends StatelessWidget {
-  const _WebApkBanner();
-
-  static const _apkUrl = 'https://twinnn.web.app/twin.apk';
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: AppTheme.inkRaised,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppTheme.seed.withValues(alpha: 0.25),
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppTheme.seed.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(
-              Icons.android_rounded,
-              color: AppTheme.seed,
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Get TWIN on Android',
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.parchment,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Native APK with turn notifications and haptic feedback.',
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    color: AppTheme.parchment.withValues(alpha: 0.6),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          TextButton(
-            onPressed: () => launchUrl(
-              Uri.parse(_apkUrl),
-              mode: LaunchMode.externalApplication,
-            ),
-            style: TextButton.styleFrom(
-              foregroundColor: AppTheme.seed,
-              visualDensity: VisualDensity.compact,
-            ),
-            child: const Text('Download'),
-          ),
-        ],
       ),
     );
   }

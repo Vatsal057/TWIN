@@ -9,7 +9,6 @@ import '../../models/chat_message.dart';
 import '../../models/friend.dart';
 import '../../models/game_invite.dart';
 import '../../models/room.dart';
-import '../notification_service.dart';
 import '../room_code.dart';
 import 'game_backend.dart';
 
@@ -119,12 +118,6 @@ class FirestoreBackend implements GameBackend {
       throw const BackendException('Could not sign in anonymously');
     }
     _uid = user.uid;
-    unawaited(
-      NotificationService.instance.initialize(
-        uid: _uid,
-        firestore: _db,
-      ),
-    );
   }
 
   @override
@@ -145,7 +138,6 @@ class FirestoreBackend implements GameBackend {
   Future<Room> createRoom({
     GameConfig config = GameConfig.defaults,
     String? rematchOf,
-    bool isPublic = false,
   }) async {
     _requireAuth();
 
@@ -184,7 +176,6 @@ class FirestoreBackend implements GameBackend {
             'rematchRoomCode': null,
             'createdAt': FieldValue.serverTimestamp(),
             'updatedAt': FieldValue.serverTimestamp(),
-            'isPublic': isPublic,
           });
           return true;
         }),
@@ -586,37 +577,6 @@ class FirestoreBackend implements GameBackend {
       }
       tx.set(friendRef, update, SetOptions(merge: true));
     });
-  }
-
-  @override
-  Future<Room> findOrCreateQuickPlayRoom({
-    GameConfig config = GameConfig.defaults,
-  }) async {
-    _requireAuth();
-    final cutoff = DateTime.now().subtract(const Duration(seconds: 45));
-    final snap = await _guard(
-      () => _db
-          .collection('rooms')
-          .where('status', isEqualTo: RoomStatus.waiting.wireName)
-          .where('isPublic', isEqualTo: true)
-          .where('createdAt', isGreaterThan: Timestamp.fromDate(cutoff))
-          .limit(10)
-          .get(),
-      'Could not search for quick play rooms.',
-    );
-
-    for (final doc in snap.docs) {
-      final room = Room.fromMap(doc.id, doc.data());
-      if (room.hostId != _uid && !room.isFull) {
-        try {
-          return await joinRoom(room.code);
-        } catch (_) {
-          // Room might have just filled up or been joined, try next
-        }
-      }
-    }
-
-    return createRoom(config: config, isPublic: true);
   }
 
   @override

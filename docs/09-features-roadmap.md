@@ -24,7 +24,7 @@ This document catalogs all proposed, in-flight, and completed features for TWIN,
 | **FEAT-14** | **Personal Lifetime Stats & Bridge Words** | Retention | P2 | **Implemented** | Web & Android |
 | **FEAT-15** | **The Daily Twin (Global Puzzle)** | Retention & Habit | P1 | **Implemented** | Web & Android |
 | **FEAT-16** | **Firestore TTL & Code Recycling** | Infrastructure | P0 | **Implemented** | Backend |
-| **FEAT-17** | **Public 1v1 Matchmaking (Quick Play)**| Solo & Matchmaking | P2 | **Implemented** | Web & Android |
+| **FEAT-17** | **Public 1v1 Matchmaking (Quick Play)**| Solo & Matchmaking | P2 | **Dropped** (Anti-pattern for intimate word game) | — |
 | **FEAT-18** | **Semantic AI Practice Partner** | Solo & Matchmaking | P2 | Planned | Web & Android |
 | **FEAT-19** | **Hardcore / Abstract Mode Deck** | Content | P2 | **Implemented** | Web & Android |
 

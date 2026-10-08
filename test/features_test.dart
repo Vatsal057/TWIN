@@ -1,8 +1,10 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:twin/core/game_config.dart';
 import 'package:twin/models/friend.dart';
 import 'package:twin/models/room.dart';
+import 'package:twin/ui/widgets/word_composer.dart';
 import 'package:twin/services/backend/local_backend.dart';
 import 'package:twin/services/daily_twin_service.dart';
 import 'package:twin/services/stats_service.dart';
@@ -161,10 +163,10 @@ void main() {
     });
   });
 
-  group('FEAT-17: Public 1v1 Matchmaking (Quick Play)', () {
-    test('Room serializes and deserializes isPublic flag', () {
+  group('Cleaned Schema & WordComposer validation', () {
+    test('Room serializes without legacy isPublic key', () {
       const room = Room(
-        code: 'TESTQ',
+        code: 'TESTX',
         hostId: 'h1',
         players: ['h1'],
         playerNames: {'h1': 'Host'},
@@ -173,23 +175,49 @@ void main() {
         currentRound: 1,
         submittedBy: [],
         rounds: [],
-        isPublic: true,
       );
 
       final map = room.toMap();
-      expect(map['isPublic'], isTrue);
+      expect(map.containsKey('isPublic'), isFalse);
 
-      final roundTrip = Room.fromMap('TESTQ', map);
-      expect(roundTrip.isPublic, isTrue);
+      final restored = Room.fromMap('TESTX', map);
+      expect(restored.code, 'TESTX');
     });
 
-    test('LocalBackend findOrCreateQuickPlayRoom creates public room', () async {
-      final backend = LocalBackend(displayName: 'QuickPlayer');
-      await backend.initialize();
+    testWidgets('WordComposer guards against empty or whitespace-only submissions', (tester) async {
+      String? submittedWord;
 
-      final room = await backend.findOrCreateQuickPlayRoom();
-      expect(room.isPublic, isTrue);
-      expect(room.status, RoomStatus.waiting);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: WordComposer(
+              enabled: true,
+              isSubmitting: false,
+              onSubmit: (w) async {
+                submittedWord = w;
+                return true;
+              },
+            ),
+          ),
+        ),
+      );
+
+      // Tap submit while empty
+      await tester.tap(find.text('Lock it in'));
+      await tester.pump();
+      expect(submittedWord, isNull);
+
+      // Enter only spaces and tap submit
+      await tester.enterText(find.byType(TextField), '    ');
+      await tester.tap(find.text('Lock it in'));
+      await tester.pump();
+      expect(submittedWord, isNull);
+
+      // Enter real word and submit
+      await tester.enterText(find.byType(TextField), '  galaxy  ');
+      await tester.tap(find.text('Lock it in'));
+      await tester.pump();
+      expect(submittedWord, 'galaxy');
     });
   });
 }
