@@ -8,6 +8,8 @@ import '../game/game_engine.dart';
 import '../models/game_round.dart';
 import '../models/room.dart';
 import '../services/backend/game_backend.dart';
+import '../services/daily_twin_service.dart';
+import '../services/stats_service.dart';
 
 /// What the game screen should render right now.
 enum ViewStage {
@@ -51,6 +53,7 @@ class GameController extends ChangeNotifier {
   bool _committing = false;
   bool _submitting = false;
   bool _pairingRemembered = false;
+  bool _gameCompletionRecorded = false;
 
   /// Round currently being shown in the reveal overlay.
   GameRound? _revealing;
@@ -184,6 +187,34 @@ class GameController extends ChangeNotifier {
       }
     }
 
+    // Record game completion metrics, chemistry, lifetime stats & daily puzzle
+    if (!_gameCompletionRecorded && room.isFinished) {
+      _gameCompletionRecorded = true;
+      final other = room.opponentOf(localPlayerId);
+      final twinnedWord = room.converged ? room.lastRound?.p1Word : null;
+      if (other != null) {
+        _backend
+            .recordGameCompletion(
+              friendId: other,
+              friendName: room.nameOf(other),
+              roundsCount: room.rounds.length,
+              converged: room.converged,
+              convergedWord: twinnedWord,
+            )
+            .catchError(
+              (Object e) => debugPrint('recordGameCompletion failed: $e'),
+            );
+      }
+      StatsService.instance.recordGameResult(
+        converged: room.converged,
+        rounds: room.rounds.length,
+        twinnedWord: twinnedWord,
+      );
+      if (room.config.theme == 'The Daily Twin' && room.converged) {
+        DailyTwinService.instance.recordDailyCompletion();
+      }
+    }
+
     if (previous?.status != room.status && room.status == RoomStatus.active) {
       _errorMessage = null;
     }
@@ -304,6 +335,7 @@ class GameController extends ChangeNotifier {
         roundIndex: room.currentRound,
         word: word,
       );
+      StatsService.instance.recordRoundWord(word);
       _myPendingWord = word;
       _startRecoveryPollingIfNeeded();
       return true;

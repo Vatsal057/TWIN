@@ -9,6 +9,7 @@ import '../../models/chat_message.dart';
 import '../../models/friend.dart';
 import '../../models/game_invite.dart';
 import '../../models/room.dart';
+import '../notification_service.dart';
 import '../room_code.dart';
 import 'game_backend.dart';
 
@@ -118,6 +119,12 @@ class FirestoreBackend implements GameBackend {
       throw const BackendException('Could not sign in anonymously');
     }
     _uid = user.uid;
+    unawaited(
+      NotificationService.instance.initialize(
+        uid: _uid,
+        firestore: _db,
+      ),
+    );
   }
 
   @override
@@ -138,6 +145,7 @@ class FirestoreBackend implements GameBackend {
   Future<Room> createRoom({
     GameConfig config = GameConfig.defaults,
     String? rematchOf,
+    bool isPublic = false,
   }) async {
     _requireAuth();
 
@@ -176,6 +184,7 @@ class FirestoreBackend implements GameBackend {
             'rematchRoomCode': null,
             'createdAt': FieldValue.serverTimestamp(),
             'updatedAt': FieldValue.serverTimestamp(),
+            'isPublic': isPublic,
           });
           return true;
         }),
@@ -512,14 +521,7 @@ class FirestoreBackend implements GameBackend {
     if (_uid.isEmpty) return Stream.value(const []);
     return _friends.snapshots().map((snap) {
       final friends = snap.docs
-          .map(
-            (doc) => Friend(
-              id: doc.id,
-              name: (doc.data()['name'] as String?) ?? 'Player',
-              gamesPlayed: (doc.data()['gamesPlayed'] as num?)?.toInt() ?? 0,
-              lastPlayedAt: _toDate(doc.data()['lastPlayedAt']),
-            ),
-          )
+          .map((doc) => Friend.fromMap(doc.id, doc.data()))
           .toList();
       friends.sort((a, b) {
         final at = a.lastPlayedAt;
@@ -547,6 +549,74 @@ class FirestoreBackend implements GameBackend {
       'lastPlayedAt': FieldValue.serverTimestamp(),
       'gamesPlayed': FieldValue.increment(1),
     }, SetOptions(merge: true));
+  }
+
+  @override
+  Future<void> recordGameCompletion({
+    required String friendId,
+    required String friendName,
+    required int roundsCount,
+    required bool converged,
+    String? convergedWord,
+  }) async {
+    if (_uid.isEmpty || friendId.isEmpty || friendId == _uid) return;
+    final friendRef = _friends.doc(friendId);
+    await _db.runTransaction((tx) async {
+      final snap = await tx.get(friendRef);
+      final data = snap.data() ?? {};
+      final existingBest = (data['bestSyncRounds'] as num?)?.toInt();
+      final update = <String, Object?>{
+        'friendId': friendId,
+        'name': friendName,
+        'lastPlayedAt': FieldValue.serverTimestamp(),
+        'gamesPlayed': FieldValue.increment(1),
+        'totalRounds': FieldValue.increment(roundsCount),
+      };
+      if (converged) {
+        if (existingBest == null || roundsCount < existingBest) {
+          update['bestSyncRounds'] = roundsCount;
+          if (convergedWord != null) {
+            update['bestSyncWord'] = convergedWord;
+          }
+        }
+        if (convergedWord != null && convergedWord.trim().isNotEmpty) {
+          update['memoryBank'] =
+              FieldValue.arrayUnion([convergedWord.trim().toLowerCase()]);
+        }
+      }
+      tx.set(friendRef, update, SetOptions(merge: true));
+    });
+  }
+
+  @override
+  Future<Room> findOrCreateQuickPlayRoom({
+    GameConfig config = GameConfig.defaults,
+  }) async {
+    _requireAuth();
+    final cutoff = DateTime.now().subtract(const Duration(seconds: 45));
+    final snap = await _guard(
+      () => _db
+          .collection('rooms')
+          .where('status', isEqualTo: RoomStatus.waiting.wireName)
+          .where('isPublic', isEqualTo: true)
+          .where('createdAt', isGreaterThan: Timestamp.fromDate(cutoff))
+          .limit(10)
+          .get(),
+      'Could not search for quick play rooms.',
+    );
+
+    for (final doc in snap.docs) {
+      final room = Room.fromMap(doc.id, doc.data());
+      if (room.hostId != _uid && !room.isFull) {
+        try {
+          return await joinRoom(room.code);
+        } catch (_) {
+          // Room might have just filled up or been joined, try next
+        }
+      }
+    }
+
+    return createRoom(config: config, isPublic: true);
   }
 
   @override

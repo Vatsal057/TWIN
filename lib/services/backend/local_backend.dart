@@ -111,6 +111,7 @@ class LocalBackend implements GameBackend {
   Future<Room> createRoom({
     GameConfig config = GameConfig.defaults,
     String? rematchOf,
+    bool isPublic = false,
   }) async {
     var code = RoomCode.generate();
     while (_rooms.containsKey(code)) {
@@ -128,6 +129,7 @@ class LocalBackend implements GameBackend {
       rounds: const [],
       rematchOf: rematchOf,
       createdAt: DateTime.now(),
+      isPublic: isPublic,
     );
     _rooms[code] = room;
     _submissions[code] = {};
@@ -331,6 +333,54 @@ class LocalBackend implements GameBackend {
     await _persistFriends();
     _emitFriends();
   }
+
+  @override
+  Future<void> recordGameCompletion({
+    required String friendId,
+    required String friendName,
+    required int roundsCount,
+    required bool converged,
+    String? convergedWord,
+  }) async {
+    if (friendId.isEmpty || friendId == _uid) return;
+    final existing = _friends[friendId];
+    final currentGames = (existing?.gamesPlayed ?? 0) + 1;
+    final currentTotalRounds = (existing?.totalRounds ?? 0) + roundsCount;
+    int? bestRounds = existing?.bestSyncRounds;
+    String? bestWord = existing?.bestSyncWord;
+    final memoryBank = List<String>.from(existing?.memoryBank ?? const []);
+
+    if (converged) {
+      if (bestRounds == null || roundsCount < bestRounds) {
+        bestRounds = roundsCount;
+        bestWord = convergedWord;
+      }
+      if (convergedWord != null && convergedWord.trim().isNotEmpty) {
+        final norm = convergedWord.trim().toLowerCase();
+        if (!memoryBank.contains(norm)) {
+          memoryBank.add(norm);
+        }
+      }
+    }
+
+    _friends[friendId] = Friend(
+      id: friendId,
+      name: friendName,
+      lastPlayedAt: DateTime.now(),
+      gamesPlayed: currentGames,
+      totalRounds: currentTotalRounds,
+      bestSyncRounds: bestRounds,
+      bestSyncWord: bestWord,
+      memoryBank: memoryBank,
+    );
+    await _persistFriends();
+    _emitFriends();
+  }
+
+  @override
+  Future<Room> findOrCreateQuickPlayRoom({
+    GameConfig config = GameConfig.defaults,
+  }) => createRoom(config: config, isPublic: true);
 
   @override
   Future<void> forgetFriend(String friendId) async {

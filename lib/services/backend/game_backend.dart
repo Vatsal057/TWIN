@@ -45,7 +45,11 @@ abstract class GameBackend {
   // ---- rooms ----
 
   /// Creates a room with a unique short code and `status: waiting`.
-  Future<Room> createRoom({GameConfig config, String? rematchOf});
+  Future<Room> createRoom({
+    GameConfig config = GameConfig.defaults,
+    String? rematchOf,
+    bool isPublic = false,
+  });
 
   /// Joins an existing waiting room and flips it to `status: active`.
   Future<Room> joinRoom(String code);
@@ -111,6 +115,19 @@ abstract class GameBackend {
     required String friendId,
     GameConfig config = GameConfig.defaults,
   });
+
+  /// Updates Duo Chemistry metrics (games played, rounds, best sync, memory bank)
+  /// between the local player and [friendId] after a game finishes.
+  Future<void> recordGameCompletion({
+    required String friendId,
+    required String friendName,
+    required int roundsCount,
+    required bool converged,
+    String? convergedWord,
+  });
+
+  /// Quick Play matchmaking: joins an existing open public room or creates one.
+  Future<Room> findOrCreateQuickPlayRoom({GameConfig config = GameConfig.defaults});
 
   /// Invites addressed to the local player.
   Stream<List<GameInvite>> watchInvites();

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/game_config.dart';
 import '../../services/deep_link_service.dart';
@@ -116,6 +117,24 @@ class LobbyView extends StatelessWidget {
                     ),
                   ],
                 ),
+                const SizedBox(height: 10),
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF25D366),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                  ),
+                  onPressed: () => _shareWhatsApp(
+                    code,
+                    session.displayName,
+                    config: game.room?.config,
+                  ),
+                  icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
+                  label: const Text(
+                    'Invite via WhatsApp',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
                 const SizedBox(height: 14),
                 _LinkRow(code: code),
                 const SizedBox(height: 36),
@@ -169,6 +188,31 @@ class LobbyView extends StatelessWidget {
             : 'Play TWIN with me',
       ),
     );
+  }
+
+  static Future<void> _shareWhatsApp(
+    String code,
+    String fromName, {
+    GameConfig? config,
+  }) async {
+    final text = DeepLinkService.shareMessage(
+      code,
+      fromName: fromName,
+      config: config,
+    );
+    final encoded = Uri.encodeComponent(text);
+    final url = Uri.parse('https://api.whatsapp.com/send?text=$encoded');
+    try {
+      final launched = await launchUrl(
+        url,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched) {
+        await SharePlus.instance.share(ShareParams(text: text));
+      }
+    } catch (_) {
+      await SharePlus.instance.share(ShareParams(text: text));
+    }
   }
 }
 

@@ -47,14 +47,7 @@ class _CreateRoomSheetState extends State<CreateRoomSheet> {
   late final TextEditingController _wordBController;
   String? _customError;
 
-  static const _themes = <String>[
-    'Food & Drink',
-    'Cinema & TV',
-    'Tech & Gaming',
-    'Geography',
-    'Pop Culture',
-    'Everyday Life',
-  ];
+  static const _themes = GameConfig.curatedCategories;
 
   static const _surprisePairs = <(String, String)>[
     ('Coffee', 'Sleep'),
@@ -67,6 +60,7 @@ class _CreateRoomSheetState extends State<CreateRoomSheet> {
     ('Music', 'Silence'),
     ('Cat', 'Dog'),
     ('Sword', 'Shield'),
+    ...GameConfig.abstractPairs,
   ];
 
   @override
@@ -133,6 +127,13 @@ class _CreateRoomSheetState extends State<CreateRoomSheet> {
       startB = b;
     } else if (_style == _PlayStyle.themed) {
       theme = _selectedTheme ?? _themes.first;
+      if (theme == 'Abstract / Hardcore') {
+        final pair = GameConfig.abstractPairs[
+          Random().nextInt(GameConfig.abstractPairs.length)
+        ];
+        startA = pair.$1;
+        startB = pair.$2;
+      }
     }
 
     final config = widget.initial.copyWith(

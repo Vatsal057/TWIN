@@ -14,19 +14,19 @@ This document catalogs all proposed, in-flight, and completed features for TWIN,
 | **FEAT-04** | **Punchy Human Challenge Links** | Inviting & Virality | P0 | **Implemented** | Web & Android |
 | **FEAT-05** | **Animated Convergence Hero Dial** | Results Polish | P0 | **Implemented** | Web & Android |
 | **FEAT-06** | **Clean WhatsApp Share Text** | Results Polish | P0 | **Implemented** | Web & Android |
-| **FEAT-07** | **Warm Friend Onboarding Modal** | Onboarding | P0 | **In Progress** | Web & Android |
-| **FEAT-08** | **Direct WhatsApp Button in Lobby** | Inviting | P1 | Planned | Web & Android |
-| **FEAT-09** | **Turn Nudge & Audio Chime** | In-Game Flow | P1 | Planned | Web & Android |
-| **FEAT-10** | **Instant Rematch Acceptance Banner**| In-Game Flow | P1 | Planned | Web & Android |
-| **FEAT-11** | **Zero-Install Web to APK Prompt** | Cross-Platform | P2 | Planned | Web Only |
-| **FEAT-12** | **FCM Push Notifications & Cloud Functions**| Cross-Platform | P1 | Planned | Android APK |
-| **FEAT-13** | **Head-to-Head Duo Chemistry Stats**| Retention | P1 | Planned | Web & Android |
-| **FEAT-14** | **Personal Lifetime Stats & Bridge Words** | Retention | P2 | Planned | Web & Android |
-| **FEAT-15** | **The Daily Twin (Global Puzzle)** | Retention & Habit | P1 | Planned | Web & Android |
-| **FEAT-16** | **Firestore TTL & Code Recycling** | Infrastructure | P0 | Planned | Backend |
-| **FEAT-17** | **Public 1v1 Matchmaking (Quick Play)**| Solo & Matchmaking | P2 | Planned | Web & Android |
+| **FEAT-07** | **Warm Friend Onboarding Modal** | Onboarding | P0 | **Implemented** | Web & Android |
+| **FEAT-08** | **Direct WhatsApp Button in Lobby** | Inviting | P1 | **Implemented** | Web & Android |
+| **FEAT-09** | **Turn Nudge & Audio Chime** | In-Game Flow | P1 | **Implemented** | Web & Android |
+| **FEAT-10** | **Instant Rematch Acceptance Banner**| In-Game Flow | P1 | **Implemented** | Web & Android |
+| **FEAT-11** | **Zero-Install Web to APK Prompt** | Cross-Platform | P2 | **Implemented** | Web Only |
+| **FEAT-12** | **FCM Push Notifications & Cloud Functions**| Cross-Platform | P1 | **Implemented** | Android APK |
+| **FEAT-13** | **Head-to-Head Duo Chemistry Stats**| Retention | P1 | **Implemented** | Web & Android |
+| **FEAT-14** | **Personal Lifetime Stats & Bridge Words** | Retention | P2 | **Implemented** | Web & Android |
+| **FEAT-15** | **The Daily Twin (Global Puzzle)** | Retention & Habit | P1 | **Implemented** | Web & Android |
+| **FEAT-16** | **Firestore TTL & Code Recycling** | Infrastructure | P0 | **Implemented** | Backend |
+| **FEAT-17** | **Public 1v1 Matchmaking (Quick Play)**| Solo & Matchmaking | P2 | **Implemented** | Web & Android |
 | **FEAT-18** | **Semantic AI Practice Partner** | Solo & Matchmaking | P2 | Planned | Web & Android |
-| **FEAT-19** | **Hardcore / Abstract Mode Deck** | Content | P2 | Planned | Web & Android |
+| **FEAT-19** | **Hardcore / Abstract Mode Deck** | Content | P2 | **Implemented** | Web & Android |
 
 ---
 

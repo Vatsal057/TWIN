@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../core/game_config.dart';
 import '../models/friend.dart';
 import '../models/game_invite.dart';
+import '../services/daily_twin_service.dart';
 import '../services/room_code.dart';
 import '../state/app_session.dart';
 import 'app_theme.dart';
@@ -11,6 +13,8 @@ import 'layout.dart';
 import 'room_launcher.dart';
 import 'widgets/brand_mark.dart';
 import 'widgets/create_room_sheet.dart';
+import 'widgets/duo_chemistry_sheet.dart';
+import 'widgets/lifetime_stats_sheet.dart';
 import 'widgets/section_label.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -27,32 +31,64 @@ class HomeScreen extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(24, 28, 24, 40),
             children: [
               const SizedBox(height: 16),
-              const BrandMark(),
-              const SizedBox(height: 36),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const BrandMark(),
+                  IconButton(
+                    tooltip: 'Lifetime Stats',
+                    icon: const Icon(
+                      Icons.insights_rounded,
+                      color: AppTheme.seed,
+                    ),
+                    onPressed: () => LifetimeStatsSheet.show(context),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 28),
               _PlayerNameField(session: session),
               if (session.backendFallbackReason != null) ...[
                 const SizedBox(height: 16),
                 _OfflineNotice(message: session.backendFallbackReason!),
               ],
-              const SizedBox(height: 28),
-              FilledButton.icon(
-                onPressed: () async {
-                  final config = await CreateRoomSheet.show(context);
-                  if (config == null || !context.mounted) return;
-                  await RoomLauncher.createAndOpen(
-                    context,
-                    session,
-                    config: config,
-                  );
-                },
-                icon: const Icon(Icons.add_circle_outline),
-                label: const Text('Create room'),
-              ),
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: () => _showJoinSheet(context, session),
-                icon: const Icon(Icons.login_rounded),
-                label: const Text('Join room'),
+              const SizedBox(height: 20),
+              _DailyTwinCard(session: session),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: () async {
+                        final config = await CreateRoomSheet.show(context);
+                        if (config == null || !context.mounted) return;
+                        await RoomLauncher.createAndOpen(
+                          context,
+                          session,
+                          config: config,
+                        );
+                      },
+                      icon: const Icon(Icons.add_circle_outline, size: 18),
+                      label: const Text('Create'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: FilledButton.tonalIcon(
+                      onPressed: () =>
+                          RoomLauncher.quickPlayAndOpen(context, session),
+                      icon: const Icon(Icons.flash_on_rounded, size: 18),
+                      label: const Text('Quick 1v1'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _showJoinSheet(context, session),
+                      icon: const Icon(Icons.login_rounded, size: 18),
+                      label: const Text('Join'),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 32),
               _InviteList(session: session),
@@ -356,6 +392,11 @@ class _FriendList extends StatelessWidget {
                         horizontal: 16,
                         vertical: 4,
                       ),
+                      onTap: () => DuoChemistrySheet.show(
+                        context,
+                        friend: friend,
+                        session: session,
+                      ),
                       leading: CircleAvatar(
                         backgroundColor: AppTheme.seed.withValues(alpha: 0.16),
                         child: Text(
@@ -401,11 +442,22 @@ class _FriendList extends StatelessWidget {
   }
 
   String _subtitleFor(Friend friend) {
+    final parts = <String>[];
     final games = friend.gamesPlayed;
-    final plural = games == 1 ? 'game' : 'games';
-    final last = friend.lastPlayedAt;
-    if (last == null) return '$games $plural';
-    return '$games $plural · last ${_relative(last)}';
+    parts.add('$games ${games == 1 ? "game" : "games"}');
+    if (friend.bestSyncRounds != null) {
+      parts.add('Best: ${friend.bestSyncRounds}r');
+    }
+    if (friend.averageRounds != null) {
+      parts.add('Avg: ${friend.averageRounds!.toStringAsFixed(1)}r');
+    }
+    if (friend.memoryBank.isNotEmpty) {
+      parts.add('${friend.memoryBank.length} twinned');
+    }
+    if (friend.lastPlayedAt != null) {
+      parts.add(_relative(friend.lastPlayedAt!));
+    }
+    return parts.join(' · ');
   }
 
   static String _relative(DateTime when) {
@@ -500,3 +552,162 @@ class _HowItWorks extends StatelessWidget {
     );
   }
 }
+
+class _DailyTwinCard extends StatefulWidget {
+  const _DailyTwinCard({required this.session});
+
+  final AppSession session;
+
+  @override
+  State<_DailyTwinCard> createState() => _DailyTwinCardState();
+}
+
+class _DailyTwinCardState extends State<_DailyTwinCard> {
+  DailyTwinStatus? _status;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final status = await DailyTwinService.instance.getStatus();
+    if (mounted) {
+      setState(() => _status = status);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final status = _status;
+    if (status == null) {
+      return const SizedBox.shrink();
+    }
+
+    final puzzle = status.puzzle;
+    final hours = puzzle.timeRemaining.inHours;
+    final minutes = puzzle.timeRemaining.inMinutes % 60;
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppTheme.inkCard,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: status.isCompletedToday
+              ? AppTheme.converged.withValues(alpha: 0.35)
+              : AppTheme.seed.withValues(alpha: 0.28),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: AppTheme.seed.withValues(alpha: 0.16),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.wb_sunny_rounded,
+                      size: 16,
+                      color: AppTheme.seed,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'The Daily Twin #${puzzle.puzzleNumber}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.parchment,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppTheme.seed.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.local_fire_department_rounded,
+                      size: 14,
+                      color: AppTheme.seed,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${status.currentStreak} day streak',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.seed,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            status.isCompletedToday
+                ? 'Completed today! Resets in ${hours}h ${minutes}m.'
+                : 'Can you bridge today\'s global anchor pair? Resets in ${hours}h ${minutes}m.',
+            style: TextStyle(
+              fontSize: 12.5,
+              height: 1.45,
+              color: AppTheme.parchment.withValues(alpha: 0.65),
+            ),
+          ),
+          const SizedBox(height: 14),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(
+              backgroundColor: status.isCompletedToday
+                  ? AppTheme.inkRaised
+                  : AppTheme.seed,
+              foregroundColor: status.isCompletedToday
+                  ? AppTheme.parchment.withValues(alpha: 0.8)
+                  : AppTheme.ink,
+            ),
+            onPressed: () async {
+              final config = GameConfig(
+                startWordA: puzzle.startWordA,
+                startWordB: puzzle.startWordB,
+                theme: 'The Daily Twin',
+              );
+              await RoomLauncher.createAndOpen(
+                context,
+                widget.session,
+                config: config,
+              );
+              _load();
+            },
+            icon: Icon(
+              status.isCompletedToday
+                  ? Icons.check_circle_outline_rounded
+                  : Icons.play_arrow_rounded,
+              size: 18,
+            ),
+            label: Text(
+              status.isCompletedToday
+                  ? 'Play again (${puzzle.startWordA} ↔ ${puzzle.startWordB})'
+                  : 'Play Daily Challenge',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+

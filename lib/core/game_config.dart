@@ -28,6 +28,8 @@ class GameConfig {
 
   bool get isUnlimited => maxRounds == null;
 
+  bool get isAbstractDeck => theme == 'Abstract / Hardcore';
+
   bool get hasCustomStart =>
       startWordA != null &&
       startWordB != null &&
@@ -35,6 +37,29 @@ class GameConfig {
       startWordB!.trim().isNotEmpty;
 
   bool get hasTheme => theme != null && theme!.trim().isNotEmpty;
+
+  static const curatedCategories = <String>[
+    'Food & Drink',
+    'Cinema & TV',
+    'Tech & Gaming',
+    'Geography',
+    'Pop Culture',
+    'Everyday Life',
+    'Abstract / Hardcore',
+  ];
+
+  static const abstractPairs = <(String, String)>[
+    ('Entropy', 'Silence'),
+    ('Nostalgia', 'Gravity'),
+    ('Infinity', 'Memory'),
+    ('Chaos', 'Geometry'),
+    ('Solitude', 'Echo'),
+    ('Time', 'Ocean'),
+    ('Consciousness', 'Void'),
+    ('Paradox', 'Mirror'),
+    ('Destiny', 'Friction'),
+    ('Metaphor', 'Shadow'),
+  ];
 
   /// The round at which the game stops no matter what.
   int get effectiveLimit => maxRounds == null

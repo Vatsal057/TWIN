@@ -25,6 +25,18 @@ class RoomLauncher {
     );
   }
 
+  static Future<void> quickPlayAndOpen(
+    BuildContext context,
+    AppSession session, {
+    GameConfig config = GameConfig.defaults,
+  }) async {
+    await _run(
+      context,
+      () => session.backend.findOrCreateQuickPlayRoom(config: config),
+      onError: 'Could not matchmake a game.',
+    );
+  }
+
   static Future<void> joinAndOpen(
     BuildContext context,
     AppSession session,

@@ -43,7 +43,11 @@ class MockBackend implements GameBackend {
   Future<void> setDisplayName(String name) async {}
 
   @override
-  Future<Room> createRoom({GameConfig config = GameConfig.defaults, String? rematchOf}) async {
+  Future<Room> createRoom({
+    GameConfig config = GameConfig.defaults,
+    String? rematchOf,
+    bool isPublic = false,
+  }) async {
     throw UnimplementedError();
   }
 
@@ -110,10 +114,21 @@ class MockBackend implements GameBackend {
   }
 
   @override
-  Stream<List<GameInvite>> watchInvites() => const Stream.empty();
+  Future<void> recordGameCompletion({
+    required String friendId,
+    required String friendName,
+    required int roundsCount,
+    required bool converged,
+    String? convergedWord,
+  }) async {}
 
   @override
-  Future<void> sendInvite({required String toUserId, required String roomCode}) async {}
+  Future<Room> findOrCreateQuickPlayRoom({
+    GameConfig config = GameConfig.defaults,
+  }) async => throw UnimplementedError();
+
+  @override
+  Stream<List<GameInvite>> watchInvites() => const Stream.empty();
 
   @override
   Future<void> dismissInvite(String roomCode) async {}
