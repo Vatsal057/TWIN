@@ -4,6 +4,7 @@ import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart';
 
 import 'room_code.dart';
+import '../core/game_config.dart';
 
 /// Host serving the web build. Also the domain that must serve
 /// `/.well-known/assetlinks.json` for Android App Links to open the installed
@@ -111,13 +112,31 @@ class DeepLinkService {
       Uri(scheme: scheme, host: joinPath, queryParameters: {'code': code});
 
   /// Message body for the out-of-app handshake (WhatsApp, SMS, whatever).
-  static String shareMessage(String code, {String? fromName}) {
+  static String shareMessage(
+    String code, {
+    String? fromName,
+    GameConfig? config,
+  }) {
     final who = (fromName == null || fromName.trim().isEmpty)
         ? 'Someone'
         : fromName.trim();
-    return '$who wants to play TWIN with you.\n\n'
-        'Tap to join: ${webJoinUri(code)}\n'
-        'Or enter room code: $code';
+    final buffer = StringBuffer();
+    if (config != null && config.hasCustomStart) {
+      buffer.writeln('$who challenged you to TWIN!');
+      buffer.writeln(
+        'Can you bridge "${config.startWordA}" and "${config.startWordB}"?',
+      );
+    } else if (config != null && config.hasTheme) {
+      buffer.writeln('$who challenged you to a ${config.theme} TWIN!');
+      buffer.writeln('Can you think of the same word?');
+    } else {
+      buffer.writeln('$who challenged you to TWIN!');
+      buffer.writeln('Can you think of the same word?');
+    }
+    buffer.writeln();
+    buffer.writeln('Tap to play: ${webJoinUri(code)}');
+    buffer.write('Room code: $code');
+    return buffer.toString();
   }
 
   void dispose() {

@@ -379,11 +379,16 @@ class _FriendList extends StatelessWidget {
                       trailing: IconButton(
                         tooltip: 'Start a game',
                         icon: const Icon(Icons.play_arrow_rounded),
-                        onPressed: () => RoomLauncher.inviteFriendAndOpen(
-                          context,
-                          session,
-                          friend.id,
-                        ),
+                        onPressed: () async {
+                          final config = await CreateRoomSheet.show(context);
+                          if (config == null || !context.mounted) return;
+                          RoomLauncher.inviteFriendAndOpen(
+                            context,
+                            session,
+                            friend.id,
+                            config: config,
+                          );
+                        },
                       ),
                       onLongPress: () => _confirmForget(context, friend),
                     ),

@@ -527,9 +527,12 @@ class FirestoreBackend implements GameBackend {
   }
 
   @override
-  Future<Room> inviteFriend({required String friendId}) async {
+  Future<Room> inviteFriend({
+    required String friendId,
+    GameConfig config = GameConfig.defaults,
+  }) async {
     _requireAuth();
-    final room = await createRoom();
+    final room = await createRoom(config: config);
     await _db
         .collection('users')
         .doc(friendId)

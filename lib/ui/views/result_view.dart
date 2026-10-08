@@ -8,7 +8,9 @@ import '../../state/app_session.dart';
 import '../../state/game_controller.dart';
 import '../app_theme.dart';
 import '../layout.dart';
+import '../../services/deep_link_service.dart';
 import '../room_launcher.dart';
+import '../widgets/convergence_hero.dart';
 import '../widgets/round_history.dart';
 import '../widgets/section_label.dart';
 
@@ -43,7 +45,7 @@ class ResultView extends StatelessWidget {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
             children: [
-              _Headline(
+              ConvergenceHero(
                 converged: converged,
                 abandoned: abandoned,
                 word: converged ? finalRound?.p1Word : null,
@@ -64,111 +66,6 @@ class ResultView extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _Headline extends StatelessWidget {
-  const _Headline({
-    required this.converged,
-    required this.abandoned,
-    required this.word,
-    required this.rounds,
-  });
-
-  final bool converged;
-  final bool abandoned;
-  final String? word;
-  final int rounds;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = converged
-        ? AppTheme.converged
-        : (abandoned
-              ? AppTheme.parchment.withValues(alpha: 0.5)
-              : AppTheme.seed);
-
-    final title = converged
-        ? 'Twinning!'
-        : (abandoned ? 'Game abandoned' : 'Out of rounds');
-
-    final subtitle = converged
-        ? 'You both said the same word.'
-        : (abandoned
-              ? 'Someone left before you twinned.'
-              : 'You ran out of rounds before twinning.');
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 34),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: color.withValues(alpha: 0.35)),
-      ),
-      child: Column(
-        children: [
-          Icon(
-            converged
-                ? Icons.auto_awesome_rounded
-                : (abandoned
-                      ? Icons.exit_to_app_rounded
-                      : Icons.hourglass_bottom_rounded),
-            color: color,
-            size: 30,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.4,
-              color: color,
-            ),
-          ),
-          if (word != null) ...[
-            const SizedBox(height: 14),
-            Text(
-              titleCaseWord(word!),
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 38,
-                fontWeight: FontWeight.w300,
-                letterSpacing: 1.5,
-                color: AppTheme.parchment,
-              ),
-            ),
-          ],
-          const SizedBox(height: 12),
-          Text(
-            subtitle,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 13.5,
-              height: 1.5,
-              color: AppTheme.parchment.withValues(alpha: 0.7),
-            ),
-          ),
-          const SizedBox(height: 20),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-            decoration: BoxDecoration(
-              color: AppTheme.ink.withValues(alpha: 0.4),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              rounds == 1 ? 'in 1 round' : 'in $rounds rounds',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.8,
-                color: AppTheme.parchment.withValues(alpha: 0.85),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -281,11 +178,17 @@ class _Actions extends StatelessWidget {
 
   static Future<void> _shareResult(GameController game, Room room) {
     final last = room.lastRound;
-    final buffer = StringBuffer('TWIN — ');
+    final buffer = StringBuffer('TWIN\n');
+    final score = calcResonanceScore(room.rounds.length, room.converged);
+    final tier = calcResonanceLabel(score);
+
     if (room.converged && last != null) {
       buffer.writeln(
-        '${game.localName} and ${game.opponentName} twinned on '
-        '"${titleCaseWord(last.p1Word)}" in ${room.rounds.length} rounds.',
+        '${game.localName} and ${game.opponentName} twinned on "${titleCaseWord(last.p1Word).toUpperCase()}"!',
+      );
+      buffer.writeln(
+        'Resonance: $score% · $tier '
+        '(${room.rounds.length} ${room.rounds.length == 1 ? "round" : "rounds"})',
       );
     } else {
       buffer.writeln(
@@ -294,12 +197,28 @@ class _Actions extends StatelessWidget {
       );
     }
     buffer.writeln();
+
     for (final round in room.rounds) {
-      buffer.writeln(
-        '${round.index}. ${titleCaseWord(round.p1Word)} / '
-        '${titleCaseWord(round.p2Word)}',
-      );
+      if (round.matched) {
+        buffer.writeln('${round.index}. ${titleCaseWord(round.p1Word)} [TWIN]');
+      } else {
+        buffer.writeln(
+          '${round.index}. ${titleCaseWord(round.p1Word)} · ${titleCaseWord(round.p2Word)}',
+        );
+      }
     }
-    return SharePlus.instance.share(ShareParams(text: buffer.toString()));
+
+    buffer.writeln();
+    buffer.writeln('Think you can beat our score?');
+    buffer.write('Play: https://${DeepLinkService.webHost}');
+
+    return SharePlus.instance.share(
+      ShareParams(
+        text: buffer.toString(),
+        subject: room.converged
+            ? 'We scored $score% Resonance on TWIN!'
+            : 'Play TWIN with me',
+      ),
+    );
   }
 }

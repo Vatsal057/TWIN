@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../core/game_config.dart';
 import '../../services/deep_link_service.dart';
 import '../../state/app_session.dart';
 import '../../state/game_controller.dart';
@@ -35,6 +36,62 @@ class LobbyView extends StatelessWidget {
                 const SectionLabel('Room code'),
                 const SizedBox(height: 16),
                 _CodeCard(code: code),
+                if (game.room?.config case final config?) ...[
+                  if (config.hasCustomStart) ...[
+                    const SizedBox(height: 14),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppTheme.seed.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: AppTheme.seed.withValues(alpha: 0.25),
+                        ),
+                      ),
+                      child: Center(
+                        child: Text(
+                          'Starting pair: ${config.startWordA} · ${config.startWordB}',
+                          style: const TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.3,
+                            color: AppTheme.parchment,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                  ] else if (config.hasTheme) ...[
+                    const SizedBox(height: 14),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppTheme.converged.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: AppTheme.converged.withValues(alpha: 0.25),
+                        ),
+                      ),
+                      child: Center(
+                        child: Text(
+                          'Category: ${config.theme}',
+                          style: const TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.3,
+                            color: AppTheme.parchment,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
                 const SizedBox(height: 20),
                 Row(
                   children: [
@@ -48,7 +105,11 @@ class LobbyView extends StatelessWidget {
                     const SizedBox(width: 12),
                     Expanded(
                       child: FilledButton.icon(
-                        onPressed: () => _share(code, session.displayName),
+                        onPressed: () => _share(
+                          code,
+                          session.displayName,
+                          config: game.room?.config,
+                        ),
                         icon: const Icon(Icons.ios_share_rounded, size: 18),
                         label: const Text('Share'),
                       ),
@@ -91,11 +152,21 @@ class LobbyView extends StatelessWidget {
     ).showSnackBar(SnackBar(content: Text('Copied $code')));
   }
 
-  static Future<void> _share(String code, String fromName) {
+  static Future<void> _share(
+    String code,
+    String fromName, {
+    GameConfig? config,
+  }) {
     return SharePlus.instance.share(
       ShareParams(
-        text: DeepLinkService.shareMessage(code, fromName: fromName),
-        subject: 'Play TWIN with me',
+        text: DeepLinkService.shareMessage(
+          code,
+          fromName: fromName,
+          config: config,
+        ),
+        subject: config != null && config.hasCustomStart
+            ? 'TWIN Challenge: ${config.startWordA} ↔ ${config.startWordB}'
+            : 'Play TWIN with me',
       ),
     );
   }

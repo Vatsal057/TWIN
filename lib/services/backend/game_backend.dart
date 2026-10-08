@@ -104,7 +104,10 @@ abstract class GameBackend {
 
   /// Creates a room and drops an invite in [friendId]'s inbox, so an
   /// established pairing never needs the code handshake again.
-  Future<Room> inviteFriend({required String friendId});
+  Future<Room> inviteFriend({
+    required String friendId,
+    GameConfig config = GameConfig.defaults,
+  });
 
   /// Invites addressed to the local player.
   Stream<List<GameInvite>> watchInvites();

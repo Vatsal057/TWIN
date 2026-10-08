@@ -267,17 +267,67 @@ class _Prompt extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final anchor = game.anchorRound;
+    final config = game.room?.config;
+
     if (anchor == null) {
+      if (config != null && config.hasCustomStart) {
+        return Column(
+          children: [
+            AnchorPair(
+              leftWord: config.startWordA!,
+              rightWord: config.startWordB!,
+              leftIsPlayerOne: true,
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppTheme.seed.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: AppTheme.seed.withValues(alpha: 0.28),
+                ),
+              ),
+              child: const Text(
+                'Starting pair: aim for the word in between',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.seed,
+                ),
+              ),
+            ),
+          ],
+        );
+      }
+
+      final isThemed = config != null && config.hasTheme;
+
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 26),
         decoration: BoxDecoration(
           color: AppTheme.inkCard,
           borderRadius: BorderRadius.circular(20),
+          border: isThemed
+              ? Border.all(color: AppTheme.converged.withValues(alpha: 0.3))
+              : null,
         ),
         child: Column(
           children: [
+            if (isThemed) ...[
+              Text(
+                'CATEGORY: ${config.theme!.toUpperCase()}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.2,
+                  color: AppTheme.converged,
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
             Text(
-              'Name anything',
+              isThemed ? 'Name something in category' : 'Name anything',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.w600,
@@ -286,8 +336,11 @@ class _Prompt extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             Text(
-              'Round one sets the starting pair. Neither '
-              'of you sees the other word until you have both committed.',
+              isThemed
+                  ? 'Round one sets the starting pair in ${config.theme}. '
+                        'Both enter in private.'
+                  : 'Round one sets the starting pair. Neither '
+                        'sees the other word until both commit.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 12.5,

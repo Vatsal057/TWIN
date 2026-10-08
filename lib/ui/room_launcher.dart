@@ -45,11 +45,12 @@ class RoomLauncher {
   static Future<void> inviteFriendAndOpen(
     BuildContext context,
     AppSession session,
-    String friendId,
-  ) async {
+    String friendId, {
+    GameConfig config = GameConfig.defaults,
+  }) async {
     await _run(
       context,
-      () => session.backend.inviteFriend(friendId: friendId),
+      () => session.backend.inviteFriend(friendId: friendId, config: config),
       onError: 'Could not send that invite.',
     );
   }

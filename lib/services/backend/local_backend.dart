@@ -333,7 +333,10 @@ class LocalBackend implements GameBackend {
   }
 
   @override
-  Future<Room> inviteFriend({required String friendId}) => createRoom();
+  Future<Room> inviteFriend({
+    required String friendId,
+    GameConfig config = GameConfig.defaults,
+  }) => createRoom(config: config);
 
   @override
   Stream<List<GameInvite>> watchInvites() => Stream.value(const []);
