@@ -80,14 +80,17 @@ class _RevealOverlayState extends State<RevealOverlay>
       child: GestureDetector(
         onTap: widget.onDismiss,
         behavior: HitTestBehavior.opaque,
-        child: Container(
-          color: AppTheme.navy950,
-          alignment: Alignment.center,
-          child: Stack(
-            children: [
-              SafeArea(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: SizedBox.expand(
+          child: ColoredBox(
+            color: AppTheme.navy950,
+            child: Stack(
+              fit: StackFit.expand,
+              clipBehavior: Clip.none,
+              children: [
+                SafeArea(
+                  child: Center(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
                   child: AnimatedBuilder(
                     animation: _controller,
                     builder: (context, _) {
@@ -282,7 +285,8 @@ class _RevealOverlayState extends State<RevealOverlay>
                   ),
                 ),
               ),
-              if (matched)
+            ),
+            if (matched)
                 Positioned.fill(
                   child: IgnorePointer(
                     child: TwinningBurst(word: leftWord),
@@ -292,6 +296,8 @@ class _RevealOverlayState extends State<RevealOverlay>
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
 }
+}
+

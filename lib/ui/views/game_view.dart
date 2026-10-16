@@ -49,6 +49,7 @@ class GameView extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppTheme.navy950,
       body: Stack(
+        clipBehavior: Clip.none,
         children: [
           SafeArea(
             child: Column(
@@ -79,20 +80,12 @@ class GameView extends StatelessWidget {
                     ),
                   ),
 
-                // Main Content: Reveal Preview if both words entered, else Gameplay
+                // Main Content: Gameplay
                 Expanded(
-                  child: reveal != null
-                      ? RevealOverlay(
-                          round: reveal,
-                          p1Name: room.nameOf(room.p1Id),
-                          p2Name: room.nameOf(room.p2Id),
-                          localIsP1: localIsP1,
-                          onDismiss: () => game.dismissReveal(),
-                        )
-                      : ListView(
-                          padding: const EdgeInsets.fromLTRB(20, 16, 20, 36),
-                          children: [
-                            // Player Slots (You vs Opponent)
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 36),
+                    children: [
+                      // Player Slots (You vs Opponent)
                             ReferenceRoundHeader(
                               localName: game.localName,
                               opponentName: game.opponentName,
@@ -145,6 +138,16 @@ class GameView extends StatelessWidget {
               ],
             ),
           ),
+          if (reveal != null)
+            Positioned.fill(
+              child: RevealOverlay(
+                round: reveal,
+                p1Name: room.nameOf(room.p1Id),
+                p2Name: room.nameOf(room.p2Id),
+                localIsP1: localIsP1,
+                onDismiss: () => game.dismissReveal(),
+              ),
+            ),
         ],
       ),
     );

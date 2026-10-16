@@ -118,6 +118,7 @@ class _TwinningBurstState extends State<TwinningBurst>
 
           return Stack(
             fit: StackFit.expand,
+            clipBehavior: Clip.none,
             children: [
               ColoredBox(color: AppTheme.ink.withValues(alpha: 0.9 * backdrop)),
               if (flash > 0.001)
@@ -126,36 +127,35 @@ class _TwinningBurstState extends State<TwinningBurst>
                 ),
               // React-prototype 14-particle circular radial confetti burst
               if (t > 0.1 && t < 0.95)
-                Center(
-                  child: SizedBox(
-                    width: 320,
-                    height: 320,
+                Positioned.fill(
+                  child: Center(
                     child: Stack(
+                      clipBehavior: Clip.none,
                       alignment: Alignment.center,
                       children: [
                         for (int i = 0; i < 14; i++)
                           Transform.translate(
                             offset: Offset(
-                              math.cos((i / 14.0) * math.pi * 2) * (180.0 * Curves.easeOutCubic.transform(t)),
-                              math.sin((i / 14.0) * math.pi * 2) * (180.0 * Curves.easeOutCubic.transform(t)),
+                              math.cos((i / 14.0) * math.pi * 2) * (200.0 * Curves.easeOutCubic.transform(t)),
+                              math.sin((i / 14.0) * math.pi * 2) * (200.0 * Curves.easeOutCubic.transform(t)),
                             ),
                             child: Transform.scale(
                               scale: (1.0 - t).clamp(0.0, 1.0),
-                              child: Opacity(
-                                opacity: ((1.0 - t) * 1.4).clamp(0.0, 1.0),
-                                child: Container(
-                                  width: 12,
-                                  height: 12,
-                                  decoration: BoxDecoration(
-                                    color: i % 2 == 0 ? AppTheme.lime : AppTheme.coral,
-                                    shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: (i % 2 == 0 ? AppTheme.lime : AppTheme.coral).withValues(alpha: 0.6),
-                                        blurRadius: 8,
-                                      ),
-                                    ],
-                                  ),
+                              child: Container(
+                                width: 12,
+                                height: 12,
+                                decoration: BoxDecoration(
+                                  color: (i % 2 == 0 ? AppTheme.lime : AppTheme.coral)
+                                      .withValues(alpha: ((1.0 - t) * 1.4).clamp(0.0, 1.0)),
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: (i % 2 == 0 ? AppTheme.lime : AppTheme.coral)
+                                          .withValues(alpha: 0.6 * ((1.0 - t) * 1.4).clamp(0.0, 1.0)),
+                                      blurRadius: 12,
+                                      spreadRadius: 2,
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
@@ -176,6 +176,7 @@ class _TwinningBurstState extends State<TwinningBurst>
                     children: [
                       FittedBox(
                         fit: BoxFit.scaleDown,
+                        clipBehavior: Clip.none,
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -250,27 +251,28 @@ class _Glyph extends StatelessWidget {
         math.sin(progress * 2 * math.pi * _wobbleCycles) *
         _wobbleAmplitude *
         (1 - progress);
+    final alpha = (progress * 4).clamp(0.0, 1.0);
 
     // Transforms do not affect layout, so the row keeps a constant width and
     // the FittedBox above it never rescales mid-animation.
-    return Opacity(
-      opacity: (progress * 4).clamp(0.0, 1.0),
-      child: Transform.rotate(
-        angle: wobble,
-        child: Transform.scale(
-          scale: 0.3 + 0.7 * pop,
-          child: Text(
-            character,
-            style: TextStyle(
-              fontSize: _glyphSize,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -3,
-              height: 1,
-              color: color,
-              shadows: [
-                Shadow(color: color.withValues(alpha: 0.5), blurRadius: 40),
-              ],
-            ),
+    return Transform.rotate(
+      angle: wobble,
+      child: Transform.scale(
+        scale: 0.3 + 0.7 * pop,
+        child: Text(
+          character,
+          style: TextStyle(
+            fontSize: _glyphSize,
+            fontWeight: FontWeight.w900,
+            letterSpacing: -3,
+            height: 1,
+            color: color.withValues(alpha: alpha),
+            shadows: [
+              Shadow(
+                color: color.withValues(alpha: 0.5 * alpha),
+                blurRadius: 40,
+              ),
+            ],
           ),
         ),
       ),
