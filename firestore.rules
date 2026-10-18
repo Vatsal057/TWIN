@@ -46,8 +46,9 @@ service cloud.firestore {
             || request.auth.uid in resource.data.players
             || resource.data.status == 'waiting');
 
-      // No browsing the room list; codes must be shared out of band.
-      allow list: if false;
+      // Players can query the rooms they belong to (e.g. for history and active list).
+      allow list: if signedIn()
+        && request.auth.uid in resource.data.players;
 
       allow create: if signedIn()
         && request.resource.data.hostId == request.auth.uid

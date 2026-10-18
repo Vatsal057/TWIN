@@ -2,35 +2,15 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/word_utils.dart';
 import '../app_theme.dart';
 
-int calcResonanceScore(int rounds, bool converged) {
-  if (!converged) return 0;
-  return switch (rounds) {
-    1 => 100,
-    2 => 95,
-    3 => 88,
-    4 => 78,
-    5 => 68,
-    _ => (100 - (rounds * 7)).clamp(20, 60),
-  };
-}
-
-String calcResonanceLabel(int score) {
-  if (score >= 98) return 'Instant resonance';
-  if (score >= 90) return 'Synchronized';
-  if (score >= 80) return 'Harmonious';
-  if (score >= 65) return 'Aligned';
-  return 'Converged';
-}
-
 /// Animated convergence hero.
 ///
-/// Draws two converging signal arcs that sweep toward each other and lock into
-/// unison when both players land on the same word, paired with an ease-out
-/// resonance counter.
+/// Draws two signal arcs that sweep toward each other and meet when both
+/// players land on the same word.
 class ConvergenceHero extends StatefulWidget {
   const ConvergenceHero({
     super.key,
@@ -95,14 +75,12 @@ class _ConvergenceHeroState extends State<ConvergenceHero>
     final converged = widget.converged;
     final abandoned = widget.abandoned;
     final rounds = widget.rounds;
-    final score = calcResonanceScore(rounds, converged);
-    final label = calcResonanceLabel(score);
 
     final borderColor = converged
-        ? AppTheme.converged.withValues(alpha: 0.3)
+        ? AppTheme.lime.withValues(alpha: 0.35)
         : (abandoned
-              ? AppTheme.parchment.withValues(alpha: 0.15)
-              : AppTheme.seed.withValues(alpha: 0.25));
+              ? Colors.white.withValues(alpha: 0.10)
+              : AppTheme.coral.withValues(alpha: 0.25));
 
     final title = converged
         ? 'TWINNING'
@@ -117,20 +95,27 @@ class _ConvergenceHeroState extends State<ConvergenceHero>
               : 'Ran out of rounds before converging.');
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
       decoration: BoxDecoration(
-        color: AppTheme.inkCard,
-        borderRadius: BorderRadius.circular(24),
+        color: AppTheme.navy900,
+        borderRadius: BorderRadius.circular(26),
         border: Border.all(color: borderColor),
+        boxShadow: [
+          if (converged)
+            BoxShadow(
+              color: AppTheme.lime.withValues(alpha: 0.12),
+              blurRadius: 24,
+              offset: const Offset(0, 8),
+            ),
+        ],
       ),
       child: Column(
         children: [
-          // Animated dual-arc resonance gauge
+          // Animated dual-arc gauge: the two arcs meet on a win
           AnimatedBuilder(
             animation: _sweep,
             builder: (context, _) {
               final t = _sweep.value;
-              final displayScore = (score * t).round();
 
               return SizedBox(
                 width: 130,
@@ -138,7 +123,6 @@ class _ConvergenceHeroState extends State<ConvergenceHero>
                 child: CustomPaint(
                   painter: _ResonanceDialPainter(
                     progress: t,
-                    score: score,
                     converged: converged,
                   ),
                   child: Center(
@@ -146,21 +130,21 @@ class _ConvergenceHeroState extends State<ConvergenceHero>
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          converged ? '$displayScore%' : '$rounds',
-                          style: const TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.w300,
+                          '$rounds',
+                          style: GoogleFonts.outfit(
+                            fontSize: 34,
+                            fontWeight: FontWeight.w900,
                             letterSpacing: -0.5,
-                            color: AppTheme.parchment,
+                            color: Colors.white,
                           ),
                         ),
                         Text(
-                          converged ? 'RESONANCE' : 'ROUNDS',
-                          style: TextStyle(
+                          'ROUNDS',
+                          style: GoogleFonts.outfit(
                             fontSize: 9,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w800,
                             letterSpacing: 2.0,
-                            color: AppTheme.parchment.withValues(alpha: 0.55),
+                            color: AppTheme.mist,
                           ),
                         ),
                       ],
@@ -170,7 +154,7 @@ class _ConvergenceHeroState extends State<ConvergenceHero>
               );
             },
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
           // Word & summary
           SlideTransition(
             position: _contentSlide,
@@ -180,65 +164,38 @@ class _ConvergenceHeroState extends State<ConvergenceHero>
                 children: [
                   Text(
                     title,
-                    style: TextStyle(
+                    style: GoogleFonts.outfit(
                       fontSize: 11,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w800,
                       letterSpacing: 2.4,
                       color: converged
-                          ? AppTheme.converged
-                          : (abandoned
-                                ? AppTheme.parchment.withValues(alpha: 0.5)
-                                : AppTheme.seed),
+                          ? AppTheme.lime
+                          : (abandoned ? AppTheme.mist : AppTheme.coral),
                     ),
                   ),
                   if (widget.word case final word?) ...[
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     Text(
                       titleCaseWord(word),
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 40,
-                        fontWeight: FontWeight.w300,
-                        letterSpacing: 2.8,
-                        color: AppTheme.parchment,
+                      style: GoogleFonts.outfit(
+                        fontSize: 36,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.5,
+                        color: Colors.white,
                       ),
                     ),
                   ],
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
                   Text(
                     subtitle,
                     textAlign: TextAlign.center,
-                    style: TextStyle(
+                    style: GoogleFonts.outfit(
                       fontSize: 13,
                       height: 1.45,
-                      color: AppTheme.parchment.withValues(alpha: 0.65),
+                      color: AppTheme.mist,
                     ),
                   ),
-                  if (converged) ...[
-                    const SizedBox(height: 18),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppTheme.converged.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: AppTheme.converged.withValues(alpha: 0.25),
-                        ),
-                      ),
-                      child: Text(
-                        label.toUpperCase(),
-                        style: const TextStyle(
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.6,
-                          color: AppTheme.converged,
-                        ),
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),
@@ -252,12 +209,10 @@ class _ConvergenceHeroState extends State<ConvergenceHero>
 class _ResonanceDialPainter extends CustomPainter {
   const _ResonanceDialPainter({
     required this.progress,
-    required this.score,
     required this.converged,
   });
 
   final double progress;
-  final int score;
   final bool converged;
 
   @override
@@ -268,28 +223,31 @@ class _ResonanceDialPainter extends CustomPainter {
 
     // Subtle track
     final trackPaint = Paint()
-      ..color = AppTheme.parchment.withValues(alpha: 0.08)
+      ..color = Colors.white.withValues(alpha: 0.08)
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth;
     canvas.drawCircle(center, radius, trackPaint);
 
     if (!converged) {
+      // A short coral arc that never closes: the two sides did not meet.
       final failPaint = Paint()
-        ..color = AppTheme.seed.withValues(alpha: 0.45)
+        ..color = AppTheme.coral.withValues(alpha: 0.45)
         ..style = PaintingStyle.stroke
         ..strokeWidth = strokeWidth
         ..strokeCap = StrokeCap.round;
       canvas.drawArc(
         Rect.fromCircle(center: center, radius: radius),
         -math.pi / 2,
-        math.pi * 2 * (score / 100) * progress,
+        math.pi * 2 * 0.35 * progress,
         false,
         failPaint,
       );
       return;
     }
 
-    final sweepAngle = (math.pi * (score / 100)) * progress;
+    // Each player's arc sweeps half the circle, so they meet exactly as the
+    // animation completes.
+    final sweepAngle = math.pi * progress;
     final rect = Rect.fromCircle(center: center, radius: radius);
 
     // Player 1 arc (marigold): sweeps clockwise from the top
@@ -319,7 +277,7 @@ class _ResonanceDialPainter extends CustomPainter {
       canvas.drawArc(
         rect,
         -math.pi / 2,
-        math.pi * 2 * (score / 100) * progress,
+        math.pi * 2 * progress,
         false,
         blendPaint,
       );
@@ -329,6 +287,5 @@ class _ResonanceDialPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _ResonanceDialPainter oldDelegate) =>
       oldDelegate.progress != progress ||
-      oldDelegate.score != score ||
       oldDelegate.converged != converged;
 }

@@ -1,24 +1,25 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/game_config.dart';
 import '../app_theme.dart';
 import '../layout.dart';
-import 'section_label.dart';
 
-enum _PlayStyle { classic, themed, custom }
+enum _PlayMode { classic, category, customPair }
 
-/// Host-side game settings, asked once before the room exists.
+/// Strictly 2-player match creator matching the redesigned dark aesthetic.
 ///
-/// Lets the host set the game (classic free play, themed categories, or custom
-/// starter pairs) and round limits.
+/// Lets the host configure the match mode (Classic, Category, or Custom Pair)
+/// and round limits, then creates a real multiplayer room with an invite link.
 class CreateRoomSheet extends StatefulWidget {
   const CreateRoomSheet({super.key, this.initial = GameConfig.defaults});
 
   final GameConfig initial;
 
-  /// Returns the chosen config, or null if dismissed.
+  /// Returns the chosen [GameConfig], or null if dismissed.
   static Future<GameConfig?> show(
     BuildContext context, {
     GameConfig initial = GameConfig.defaults,
@@ -26,10 +27,10 @@ class CreateRoomSheet extends StatefulWidget {
     return showModalBottomSheet<GameConfig>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppTheme.inkRaised,
+      backgroundColor: AppTheme.navy900,
       constraints: const BoxConstraints(maxWidth: Layout.contentMaxWidth),
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       builder: (_) => CreateRoomSheet(initial: initial),
     );
@@ -40,14 +41,13 @@ class CreateRoomSheet extends StatefulWidget {
 }
 
 class _CreateRoomSheetState extends State<CreateRoomSheet> {
-  late int? _limit = widget.initial.maxRounds;
-  _PlayStyle _style = _PlayStyle.classic;
-  String? _selectedTheme;
+  late _PlayMode _mode;
+  late int? _limit;
+  String _selectedTheme = GameConfig.curatedCategories.first;
+
   late final TextEditingController _wordAController;
   late final TextEditingController _wordBController;
   String? _customError;
-
-  static const _themes = GameConfig.curatedCategories;
 
   static const _surprisePairs = <(String, String)>[
     ('Coffee', 'Sleep'),
@@ -66,21 +66,19 @@ class _CreateRoomSheetState extends State<CreateRoomSheet> {
   @override
   void initState() {
     super.initState();
+    _limit = widget.initial.maxRounds;
+
     if (widget.initial.hasCustomStart) {
-      _style = _PlayStyle.custom;
-      _wordAController = TextEditingController(
-        text: widget.initial.startWordA ?? '',
-      );
-      _wordBController = TextEditingController(
-        text: widget.initial.startWordB ?? '',
-      );
+      _mode = _PlayMode.customPair;
+      _wordAController = TextEditingController(text: widget.initial.startWordA ?? '');
+      _wordBController = TextEditingController(text: widget.initial.startWordB ?? '');
     } else if (widget.initial.hasTheme) {
-      _style = _PlayStyle.themed;
-      _selectedTheme = widget.initial.theme;
+      _mode = _PlayMode.category;
+      _selectedTheme = widget.initial.theme ?? GameConfig.curatedCategories.first;
       _wordAController = TextEditingController();
       _wordBController = TextEditingController();
     } else {
-      _style = _PlayStyle.classic;
+      _mode = _PlayMode.classic;
       _wordAController = TextEditingController();
       _wordBController = TextEditingController();
     }
@@ -94,6 +92,7 @@ class _CreateRoomSheetState extends State<CreateRoomSheet> {
   }
 
   void _pickSurprisePair() {
+    HapticFeedback.lightImpact();
     final random = Random();
     final pair = _surprisePairs[random.nextInt(_surprisePairs.length)];
     setState(() {
@@ -108,12 +107,12 @@ class _CreateRoomSheetState extends State<CreateRoomSheet> {
     String? startB;
     String? theme;
 
-    if (_style == _PlayStyle.custom) {
+    if (_mode == _PlayMode.customPair) {
       final a = _wordAController.text.trim();
       final b = _wordBController.text.trim();
       if (a.isEmpty || b.isEmpty) {
         setState(() {
-          _customError = 'Enter both words for the challenge.';
+          _customError = 'Enter both starting words to challenge your friend.';
         });
         return;
       }
@@ -125,8 +124,8 @@ class _CreateRoomSheetState extends State<CreateRoomSheet> {
       }
       startA = a;
       startB = b;
-    } else if (_style == _PlayStyle.themed) {
-      theme = _selectedTheme ?? _themes.first;
+    } else if (_mode == _PlayMode.category) {
+      theme = _selectedTheme;
       if (theme == 'Abstract / Hardcore') {
         final pair = GameConfig.abstractPairs[
           Random().nextInt(GameConfig.abstractPairs.length)
@@ -136,6 +135,7 @@ class _CreateRoomSheetState extends State<CreateRoomSheet> {
       }
     }
 
+    HapticFeedback.mediumImpact();
     final config = widget.initial.copyWith(
       maxRounds: _limit,
       startWordA: startA,
@@ -152,137 +152,283 @@ class _CreateRoomSheetState extends State<CreateRoomSheet> {
 
     return SafeArea(
       child: Padding(
-        padding: EdgeInsets.fromLTRB(24, 20, 24, 20 + bottomInset),
+        padding: EdgeInsets.fromLTRB(20, 16, 20, 24 + bottomInset),
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // Pull handle
               Center(
                 child: Container(
-                  width: 38,
+                  width: 36,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: AppTheme.parchment.withValues(alpha: 0.2),
+                    color: Colors.white.withValues(alpha: 0.25),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
-              const SectionLabel('Mode'),
+              const SizedBox(height: 16),
+
+              // Title row with close icon
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Start new match',
+                    style: GoogleFonts.outfit(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                    ),
+                  ),
+                  InkWell(
+                    onTap: () => Navigator.of(context).pop(),
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.08),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.close_rounded, size: 20, color: Colors.white),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 22),
+
+              // Mode Section
+              Text(
+                'GAME MODE',
+                style: GoogleFonts.outfit(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 2.0,
+                  color: AppTheme.mist,
+                ),
+              ),
               const SizedBox(height: 12),
               Row(
                 children: [
                   Expanded(
-                    child: _ModeChip(
-                      label: 'Classic',
+                    child: _ModeSelectionCard(
+                      title: 'Classic',
+                      subtitle: 'Open play',
                       icon: Icons.all_inclusive_rounded,
-                      selected: _style == _PlayStyle.classic,
-                      onTap: () => setState(() {
-                        _style = _PlayStyle.classic;
-                        _customError = null;
-                      }),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _ModeChip(
-                      label: 'Category',
-                      icon: Icons.grid_view_rounded,
-                      selected: _style == _PlayStyle.themed,
-                      onTap: () => setState(() {
-                        _style = _PlayStyle.themed;
-                        _selectedTheme ??= _themes.first;
-                        _customError = null;
-                      }),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _ModeChip(
-                      label: 'Custom Pair',
-                      icon: Icons.compare_arrows_rounded,
-                      selected: _style == _PlayStyle.custom,
+                      selected: _mode == _PlayMode.classic,
                       onTap: () {
-                        setState(() => _style = _PlayStyle.custom);
-                        if (_wordAController.text.isEmpty &&
-                            _wordBController.text.isEmpty) {
-                          _pickSurprisePair();
-                        }
+                        HapticFeedback.selectionClick();
+                        setState(() {
+                          _mode = _PlayMode.classic;
+                          _customError = null;
+                        });
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _ModeSelectionCard(
+                      title: 'Category',
+                      subtitle: 'Themed',
+                      icon: Icons.category_rounded,
+                      selected: _mode == _PlayMode.category,
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        setState(() {
+                          _mode = _PlayMode.category;
+                          _customError = null;
+                        });
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _ModeSelectionCard(
+                      title: 'Custom',
+                      subtitle: 'Set words',
+                      icon: Icons.compare_arrows_rounded,
+                      selected: _mode == _PlayMode.customPair,
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        setState(() {
+                          _mode = _PlayMode.customPair;
+                          if (_wordAController.text.isEmpty && _wordBController.text.isEmpty) {
+                            _pickSurprisePair();
+                          }
+                        });
                       },
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              if (_style == _PlayStyle.themed) ...[
-                const SectionLabel('Category'),
+
+              const SizedBox(height: 18),
+
+              // Dynamic mode body
+              if (_mode == _PlayMode.classic) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.info_outline_rounded, color: AppTheme.lime, size: 20),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Anything goes! You and your friend both type any secret word in Round 1 to start.',
+                          style: GoogleFonts.outfit(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: AppTheme.mist,
+                            height: 1.35,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ] else if (_mode == _PlayMode.category) ...[
+                Text(
+                  'CATEGORY THEME',
+                  style: GoogleFonts.outfit(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 2.0,
+                    color: AppTheme.mist,
+                  ),
+                ),
                 const SizedBox(height: 10),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    for (final theme in _themes)
-                      _Choice(
+                    for (final theme in GameConfig.curatedCategories)
+                      _PillChip(
                         label: theme,
                         selected: _selectedTheme == theme,
-                        onTap: () => setState(() => _selectedTheme = theme),
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          setState(() => _selectedTheme = theme);
+                        },
                       ),
                   ],
                 ),
-                const SizedBox(height: 14),
-              ] else if (_style == _PlayStyle.custom) ...[
+              ] else if (_mode == _PlayMode.customPair) ...[
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const SectionLabel('Starting pair'),
-                    TextButton.icon(
-                      onPressed: _pickSurprisePair,
-                      icon: const Icon(Icons.shuffle_rounded, size: 16),
-                      label: const Text('Surprise pair'),
+                    Text(
+                      'STARTING WORDS',
+                      style: GoogleFonts.outfit(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 2.0,
+                        color: AppTheme.mist,
+                      ),
+                    ),
+                    InkWell(
+                      onTap: _pickSurprisePair,
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppTheme.lime.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppTheme.lime.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.shuffle_rounded, size: 13, color: AppTheme.lime),
+                            const SizedBox(width: 5),
+                            Text(
+                              'Surprise pair',
+                              style: GoogleFonts.outfit(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.lime,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 Row(
                   children: [
                     Expanded(
                       child: TextField(
                         controller: _wordAController,
-                        textCapitalization: TextCapitalization.words,
-                        maxLength: 25,
-                        decoration: const InputDecoration(
-                          hintText: 'Word 1',
-                          counterText: '',
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 12,
+                        style: GoogleFonts.outfit(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: 'Word A',
+                          hintStyle: GoogleFonts.outfit(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.mist.withValues(alpha: 0.6),
+                          ),
+                          filled: true,
+                          fillColor: AppTheme.navy950,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide.none,
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide(color: AppTheme.lime.withValues(alpha: 0.6), width: 1.5),
                           ),
                         ),
                       ),
                     ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      child: Text(
-                        '·',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.parchment.withValues(alpha: 0.5),
-                        ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'vs',
+                      style: GoogleFonts.outfit(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.mist,
                       ),
                     ),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: TextField(
                         controller: _wordBController,
-                        textCapitalization: TextCapitalization.words,
-                        maxLength: 25,
-                        decoration: const InputDecoration(
-                          hintText: 'Word 2',
-                          counterText: '',
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 12,
+                        style: GoogleFonts.outfit(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: 'Word B',
+                          hintStyle: GoogleFonts.outfit(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.mist.withValues(alpha: 0.6),
+                          ),
+                          filled: true,
+                          fillColor: AppTheme.navy950,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide.none,
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide(color: AppTheme.coral.withValues(alpha: 0.6), width: 1.5),
                           ),
                         ),
                       ),
@@ -293,47 +439,83 @@ class _CreateRoomSheetState extends State<CreateRoomSheet> {
                   const SizedBox(height: 8),
                   Text(
                     _customError!,
-                    style: const TextStyle(
+                    style: GoogleFonts.outfit(
                       fontSize: 12,
-                      color: AppTheme.seed,
                       fontWeight: FontWeight.w600,
+                      color: AppTheme.coral,
                     ),
                   ),
                 ],
-                const SizedBox(height: 14),
               ],
-              const SectionLabel('Round limit'),
-              const SizedBox(height: 12),
+
+              const SizedBox(height: 24),
+
+              // Round limit Section
+              Text(
+                'ROUND LIMIT',
+                style: GoogleFonts.outfit(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 2.0,
+                  color: AppTheme.mist,
+                ),
+              ),
+              const SizedBox(height: 10),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  for (final preset in GameConfig.presetLimits)
-                    _Choice(
-                      label: GameConfig.labelForLimit(preset),
-                      selected: _limit == preset,
-                      onTap: () => setState(() => _limit = preset),
+                  for (final limit in GameConfig.presetLimits)
+                    _PillChip(
+                      label: GameConfig.labelForLimit(limit),
+                      selected: _limit == limit,
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        setState(() => _limit = limit);
+                      },
                     ),
                 ],
               ),
-              const SizedBox(height: 10),
-              Text(
-                _limit == null
-                    ? 'Play until you converge. Games only end when you both say '
-                          'the same word.'
-                    : 'The game ends after $_limit rounds even if you have not '
-                          'converged.',
-                style: TextStyle(
-                  fontSize: 12.5,
-                  height: 1.5,
-                  color: AppTheme.parchment.withValues(alpha: 0.6),
+
+              const SizedBox(height: 28),
+
+              // Submit Button: strictly 2 players invite flow
+              FilledButton(
+                onPressed: _submit,
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppTheme.lime,
+                  foregroundColor: AppTheme.navy950,
+                  padding: const EdgeInsets.symmetric(vertical: 18),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  elevation: 0,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.link_rounded, size: 22, color: AppTheme.navy950),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Create match & invite friend',
+                      style: GoogleFonts.outfit(
+                        fontSize: 16.5,
+                        fontWeight: FontWeight.w900,
+                        color: AppTheme.navy950,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 24),
-              FilledButton.icon(
-                onPressed: _submit,
-                icon: const Icon(Icons.rocket_launch_rounded),
-                label: const Text('Start challenge'),
+              const SizedBox(height: 10),
+              Text(
+                'Generates an invite link and 5-letter room code for your friend.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.outfit(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: AppTheme.mist.withValues(alpha: 0.8),
+                ),
               ),
             ],
           ),
@@ -343,72 +525,72 @@ class _CreateRoomSheetState extends State<CreateRoomSheet> {
   }
 }
 
-class _ModeChip extends StatelessWidget {
-  const _ModeChip({
-    required this.label,
+class _ModeSelectionCard extends StatelessWidget {
+  const _ModeSelectionCard({
+    required this.title,
+    required this.subtitle,
     required this.icon,
     required this.selected,
     required this.onTap,
   });
 
-  final String label;
+  final String title;
+  final String subtitle;
   final IconData icon;
   final bool selected;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: selected
-          ? AppTheme.seed.withValues(alpha: 0.18)
-          : AppTheme.inkCard,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: selected
-                  ? AppTheme.seed
-                  : AppTheme.parchment.withValues(alpha: 0.12),
-              width: selected ? 1.5 : 1,
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppTheme.lime.withValues(alpha: 0.12)
+              : Colors.white.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected ? AppTheme.lime : Colors.white.withValues(alpha: 0.10),
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Column(
+          children: [
+            Icon(
+              icon,
+              size: 22,
+              color: selected ? AppTheme.lime : Colors.white70,
             ),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                size: 20,
-                color: selected
-                    ? AppTheme.seed
-                    : AppTheme.parchment.withValues(alpha: 0.7),
+            const SizedBox(height: 6),
+            Text(
+              title,
+              style: GoogleFonts.outfit(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w800,
+                color: selected ? AppTheme.lime : Colors.white,
               ),
-              const SizedBox(height: 6),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                  color: selected
-                      ? AppTheme.seed
-                      : AppTheme.parchment.withValues(alpha: 0.8),
-                ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              subtitle,
+              style: GoogleFonts.outfit(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: selected ? AppTheme.lime.withValues(alpha: 0.8) : AppTheme.mist,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _Choice extends StatelessWidget {
-  const _Choice({
+class _PillChip extends StatelessWidget {
+  const _PillChip({
     required this.label,
     required this.selected,
     required this.onTap,
@@ -420,34 +602,24 @@ class _Choice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: selected
-          ? AppTheme.seed.withValues(alpha: 0.18)
-          : AppTheme.inkCard,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: selected
-                  ? AppTheme.seed
-                  : AppTheme.parchment.withValues(alpha: 0.12),
-              width: selected ? 1.5 : 1,
-            ),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: selected ? AppTheme.lime : Colors.white.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected ? AppTheme.lime : Colors.white.withValues(alpha: 0.08),
           ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-              color: selected
-                  ? AppTheme.seed
-                  : AppTheme.parchment.withValues(alpha: 0.8),
-            ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.outfit(
+            fontSize: 13.5,
+            fontWeight: FontWeight.w700,
+            color: selected ? AppTheme.navy950 : AppTheme.mist,
           ),
         ),
       ),

@@ -8,7 +8,6 @@ import '../game/game_engine.dart';
 import '../models/game_round.dart';
 import '../models/room.dart';
 import '../services/backend/game_backend.dart';
-import '../services/daily_twin_service.dart';
 import '../services/stats_service.dart';
 
 /// What the game screen should render right now.
@@ -187,7 +186,7 @@ class GameController extends ChangeNotifier {
       }
     }
 
-    // Record game completion metrics, chemistry, lifetime stats & daily puzzle
+    // Record game completion metrics, chemistry & lifetime stats
     if (!_gameCompletionRecorded && room.isFinished) {
       _gameCompletionRecorded = true;
       final other = room.opponentOf(localPlayerId);
@@ -210,9 +209,6 @@ class GameController extends ChangeNotifier {
         rounds: room.rounds.length,
         twinnedWord: twinnedWord,
       );
-      if (room.config.theme == 'The Daily Twin' && room.converged) {
-        DailyTwinService.instance.recordDailyCompletion();
-      }
     }
 
     if (previous?.status != room.status && room.status == RoomStatus.active) {
@@ -379,7 +375,30 @@ class GameController extends ChangeNotifier {
     }
   }
 
-  Future<void> leave() => _backend.leaveRoom(_roomCode);
+  Future<void> leave() async {
+    final current = _room;
+    if (!_gameCompletionRecorded && current != null) {
+      _gameCompletionRecorded = true;
+      final other = current.opponentOf(localPlayerId);
+      if (other != null) {
+        _backend
+            .recordGameCompletion(
+              friendId: other,
+              friendName: current.nameOf(other),
+              roundsCount: current.rounds.length,
+              converged: false,
+            )
+            .catchError(
+              (Object e) => debugPrint('recordGameCompletion failed: $e'),
+            );
+      }
+      StatsService.instance.recordGameResult(
+        converged: false,
+        rounds: current.rounds.length,
+      );
+    }
+    await _backend.leaveRoom(_roomCode);
+  }
 
   /// Number of rounds it took, which is the only "score" a collaborative game
   /// has: fewer is better, and it belongs to both players.

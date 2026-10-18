@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/word_utils.dart';
 import '../../services/stats_service.dart';
 import '../app_theme.dart';
 import '../layout.dart';
-import 'section_label.dart';
 
 /// Modal bottom sheet displaying personal lifetime stats and frequent bridge words.
 class LifetimeStatsSheet extends StatelessWidget {
@@ -19,7 +19,7 @@ class LifetimeStatsSheet extends StatelessWidget {
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppTheme.inkRaised,
+      backgroundColor: AppTheme.navy900,
       constraints: const BoxConstraints(maxWidth: Layout.contentMaxWidth),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -42,7 +42,7 @@ class LifetimeStatsSheet extends StatelessWidget {
 
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -53,7 +53,7 @@ class LifetimeStatsSheet extends StatelessWidget {
                   width: 38,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: AppTheme.parchment.withValues(alpha: 0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -62,36 +62,37 @@ class LifetimeStatsSheet extends StatelessWidget {
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: AppTheme.seed.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12),
+                      color: AppTheme.lime.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(16),
                     ),
                     child: const Icon(
                       Icons.insights_rounded,
-                      color: AppTheme.seed,
-                      size: 22,
+                      color: AppTheme.lime,
+                      size: 24,
                     ),
                   ),
                   const SizedBox(width: 14),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           'Lifetime Telepathy Stats',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: AppTheme.parchment,
+                          style: GoogleFonts.outfit(
+                            fontSize: 19,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
                           ),
                         ),
-                        SizedBox(height: 2),
+                        const SizedBox(height: 2),
                         Text(
                           'Convergence history & conceptual hubs',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppTheme.seed,
+                          style: GoogleFonts.outfit(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.lime,
                           ),
                         ),
                       ],
@@ -104,7 +105,7 @@ class LifetimeStatsSheet extends StatelessWidget {
                 children: [
                   Expanded(
                     child: _StatCard(
-                      label: 'Total Twins',
+                      label: 'TOTAL TWINS',
                       value: '${stats.totalGamesTwinned}',
                       detail: '$winPercent sync rate',
                     ),
@@ -112,7 +113,7 @@ class LifetimeStatsSheet extends StatelessWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: _StatCard(
-                      label: 'Fastest Sync',
+                      label: 'FASTEST SYNC',
                       value: fastestStr,
                       detail: 'fewest rounds',
                     ),
@@ -120,7 +121,7 @@ class LifetimeStatsSheet extends StatelessWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: _StatCard(
-                      label: 'Avg Rounds',
+                      label: 'AVG ROUNDS',
                       value: avgRoundsStr,
                       detail: '${stats.totalGamesPlayed} games',
                     ),
@@ -128,13 +129,21 @@ class LifetimeStatsSheet extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 26),
-              const SectionLabel('Frequent Bridge Words'),
+              Text(
+                'FREQUENT BRIDGE WORDS',
+                style: GoogleFonts.outfit(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.5,
+                  color: AppTheme.mist,
+                ),
+              ),
               const SizedBox(height: 6),
               Text(
                 'Your go-to conceptual bridges across all rounds played.',
-                style: TextStyle(
+                style: GoogleFonts.outfit(
                   fontSize: 12,
-                  color: AppTheme.parchment.withValues(alpha: 0.6),
+                  color: AppTheme.mist,
                 ),
               ),
               const SizedBox(height: 14),
@@ -143,19 +152,19 @@ class LifetimeStatsSheet extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 24),
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: AppTheme.inkCard,
-                    borderRadius: BorderRadius.circular(14),
+                    color: AppTheme.navy950,
+                    borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: AppTheme.parchment.withValues(alpha: 0.08),
+                      color: Colors.white.withValues(alpha: 0.08),
                     ),
                   ),
                   child: Text(
                     'No words recorded yet.\nPlay a few games to see your semantic hubs.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
+                    style: GoogleFonts.outfit(
                       fontSize: 13,
                       height: 1.5,
-                      color: AppTheme.parchment.withValues(alpha: 0.45),
+                      color: AppTheme.mist,
                     ),
                   ),
                 )
@@ -167,14 +176,14 @@ class LifetimeStatsSheet extends StatelessWidget {
                     for (final entry in stats.topBridgeWords)
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 7,
+                          horizontal: 14,
+                          vertical: 8,
                         ),
                         decoration: BoxDecoration(
-                          color: AppTheme.inkCard,
+                          color: AppTheme.navy950,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: AppTheme.parchment.withValues(alpha: 0.12),
+                            color: AppTheme.lime.withValues(alpha: 0.35),
                           ),
                         ),
                         child: Row(
@@ -182,28 +191,28 @@ class LifetimeStatsSheet extends StatelessWidget {
                           children: [
                             Text(
                               titleCaseWord(entry.key),
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: AppTheme.parchment,
+                              style: GoogleFonts.outfit(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
                               ),
                             ),
-                            const SizedBox(width: 6),
+                            const SizedBox(width: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
+                                horizontal: 7,
                                 vertical: 2,
                               ),
                               decoration: BoxDecoration(
-                                color: AppTheme.seed.withValues(alpha: 0.18),
+                                color: AppTheme.lime.withValues(alpha: 0.20),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Text(
                                 '${entry.value}',
-                                style: const TextStyle(
+                                style: GoogleFonts.outfit(
                                   fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppTheme.seed,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppTheme.lime,
                                 ),
                               ),
                             ),
@@ -236,10 +245,10 @@ class _StatCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
       decoration: BoxDecoration(
-        color: AppTheme.inkCard,
-        borderRadius: BorderRadius.circular(14),
+        color: AppTheme.navy950,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: AppTheme.parchment.withValues(alpha: 0.08),
+          color: Colors.white.withValues(alpha: 0.08),
         ),
       ),
       child: Column(
@@ -247,19 +256,20 @@ class _StatCard extends StatelessWidget {
         children: [
           Text(
             label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.parchment.withValues(alpha: 0.5),
+            style: GoogleFonts.outfit(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8,
+              color: AppTheme.mist,
             ),
           ),
           const SizedBox(height: 6),
           Text(
             value,
-            style: const TextStyle(
+            style: GoogleFonts.outfit(
               fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: AppTheme.parchment,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
             ),
           ),
           if (detail != null) ...[
@@ -268,9 +278,10 @@ class _StatCard extends StatelessWidget {
               detail!,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: GoogleFonts.outfit(
                 fontSize: 11,
-                color: AppTheme.seed,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.lime,
               ),
             ),
           ],

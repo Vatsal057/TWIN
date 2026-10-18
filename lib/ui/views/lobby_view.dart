@@ -1,176 +1,39 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/game_config.dart';
 import '../../services/deep_link_service.dart';
 import '../../state/app_session.dart';
 import '../../state/game_controller.dart';
 import '../app_theme.dart';
-import '../layout.dart';
-import '../widgets/section_label.dart';
+import '../widgets/bouncy_tap.dart';
 
-/// Waiting room. The code handshake happens outside the app — WhatsApp, SMS,
-/// whatever — so this screen's only job is to make the code effortless to pass
-/// along, then get out of the way the instant the second player lands.
-class LobbyView extends StatelessWidget {
+/// Waiting room: shows the room code once, one share-invite action,
+/// category badges, and the waiting pulse indicator.
+class LobbyView extends StatefulWidget {
   const LobbyView({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final game = context.watch<GameController>();
-    final session = context.read<AppSession>();
-    final code = game.roomCode;
+  State<LobbyView> createState() => _LobbyViewState();
+}
 
-    return Scaffold(
-      appBar: AppBar(leading: const BackButton(), title: const Text('Lobby')),
-      body: SafeArea(
-        child: PageShell(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 12),
-                const SectionLabel('Room code'),
-                const SizedBox(height: 16),
-                _CodeCard(code: code, onTap: () => _copy(context, code)),
-                if (game.room?.config case final config?) ...[
-                  if (config.hasCustomStart) ...[
-                    const SizedBox(height: 14),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppTheme.seed.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: AppTheme.seed.withValues(alpha: 0.25),
-                        ),
-                      ),
-                      child: Center(
-                        child: Text(
-                          'Starting pair: ${config.startWordA} · ${config.startWordB}',
-                          style: const TextStyle(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 0.3,
-                            color: AppTheme.parchment,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ),
-                  ] else if (config.hasTheme) ...[
-                    const SizedBox(height: 14),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppTheme.converged.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: AppTheme.converged.withValues(alpha: 0.25),
-                        ),
-                      ),
-                      child: Center(
-                        child: Text(
-                          'Category: ${config.theme}',
-                          style: const TextStyle(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 0.3,
-                            color: AppTheme.parchment,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      flex: 3,
-                      child: FilledButton.icon(
-                        onPressed: () => _share(
-                          code,
-                          session.displayName,
-                          config: game.room?.config,
-                        ),
-                        icon: const Icon(Icons.ios_share_rounded, size: 18),
-                        label: const Text('Share invite'),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      flex: 2,
-                      child: FilledButton.icon(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFF25D366),
-                          foregroundColor: Colors.white,
-                        ),
-                        onPressed: () => _shareWhatsApp(
-                          code,
-                          session.displayName,
-                          config: game.room?.config,
-                        ),
-                        icon: const Icon(
-                          Icons.chat_bubble_outline_rounded,
-                          size: 16,
-                        ),
-                        label: const Text('WhatsApp'),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                _LinkRow(code: code),
-                const SizedBox(height: 36),
-                const _WaitingIndicator(),
-                const SizedBox(height: 32),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppTheme.inkRaised,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Text(
-                    'Send the code or the link. When they join, you both drop '
-                    'into round one at the same moment.',
-                    style: TextStyle(
-                      fontSize: 13,
-                      height: 1.55,
-                      color: AppTheme.parchment.withValues(alpha: 0.6),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+class _LobbyViewState extends State<LobbyView> {
+  bool _copied = false;
 
-  static void _copy(BuildContext context, String code) {
+  void _copy(String code) {
+    HapticFeedback.lightImpact();
     Clipboard.setData(ClipboardData(text: code));
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('Copied $code')));
+    setState(() => _copied = true);
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) setState(() => _copied = false);
+    });
   }
 
-  static Future<void> _share(
-    String code,
-    String fromName, {
-    GameConfig? config,
-  }) {
+  Future<void> _share(String code, String fromName, {GameConfig? config}) {
+    HapticFeedback.lightImpact();
     return SharePlus.instance.share(
       ShareParams(
         text: DeepLinkService.shareMessage(
@@ -185,133 +48,196 @@ class LobbyView extends StatelessWidget {
     );
   }
 
-  static Future<void> _shareWhatsApp(
-    String code,
-    String fromName, {
-    GameConfig? config,
-  }) async {
-    final text = DeepLinkService.shareMessage(
-      code,
-      fromName: fromName,
-      config: config,
-    );
-    final encoded = Uri.encodeComponent(text);
-    final url = Uri.parse('https://api.whatsapp.com/send?text=$encoded');
-    try {
-      final launched = await launchUrl(
-        url,
-        mode: LaunchMode.externalApplication,
-      );
-      if (!launched) {
-        await SharePlus.instance.share(ShareParams(text: text));
-      }
-    } catch (_) {
-      await SharePlus.instance.share(ShareParams(text: text));
-    }
-  }
-}
-
-class _CodeCard extends StatelessWidget {
-  const _CodeCard({required this.code, required this.onTap});
-
-  final String code;
-  final VoidCallback onTap;
-
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 22),
-        decoration: BoxDecoration(
-          color: AppTheme.inkCard,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppTheme.seed.withValues(alpha: 0.22)),
-        ),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                for (final char in code.split(''))
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 5),
-                    child: Text(
-                      char,
-                      style: const TextStyle(
-                        fontSize: 38,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.seed,
-                        height: 1,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.copy_rounded,
-                  size: 13,
-                  color: AppTheme.parchment.withValues(alpha: 0.5),
-                ),
-                const SizedBox(width: 5),
-                Text(
-                  'Tap code to copy',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppTheme.parchment.withValues(alpha: 0.5),
-                  ),
-                ),
-              ],
-            ),
-          ],
+    final game = context.watch<GameController>();
+    final session = context.read<AppSession>();
+    final code = game.roomCode;
+    final config = game.room?.config;
+
+    return Scaffold(
+      backgroundColor: AppTheme.navy950,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.close_rounded, color: Colors.white),
+          onPressed: () => Navigator.of(context).maybePop(),
         ),
       ),
-    );
-  }
-}
-
-class _LinkRow extends StatelessWidget {
-  const _LinkRow({required this.code});
-
-  final String code;
-
-  @override
-  Widget build(BuildContext context) {
-    final link = DeepLinkService.webJoinUri(code).toString();
-    return InkWell(
-      borderRadius: BorderRadius.circular(10),
-      onTap: () {
-        Clipboard.setData(ClipboardData(text: link));
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Join link copied')));
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-        child: Row(
-          children: [
-            Icon(
-              Icons.link_rounded,
-              size: 16,
-              color: AppTheme.parchment.withValues(alpha: 0.6),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                link,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12.5,
-                  color: AppTheme.parchment.withValues(alpha: 0.6),
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Animated icon
+                Container(
+                  width: 76,
+                  height: 76,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.05),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                  ),
+                  child: const Icon(Icons.person_add_rounded, color: AppTheme.lime, size: 36),
                 ),
-              ),
+                const SizedBox(height: 20),
+
+                Text(
+                  'Waiting for a friend',
+                  style: GoogleFonts.outfit(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Text(
+                    'Send your friend the invite link. They join from their own device, no accounts needed.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.outfit(
+                      fontSize: 14,
+                      color: AppTheme.mist,
+                      height: 1.5,
+                    ),
+                  ),
+                ),
+
+                // Custom Start or Category pill if configured
+                if (config != null) ...[
+                  if (config.hasCustomStart) ...[
+                    const SizedBox(height: 18),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: AppTheme.lime.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppTheme.lime.withValues(alpha: 0.3)),
+                      ),
+                      child: Text(
+                        'Starting pair: ${config.startWordA} · ${config.startWordB}',
+                        style: GoogleFonts.outfit(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.lime,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ] else if (config.hasTheme) ...[
+                    const SizedBox(height: 18),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: AppTheme.coral.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppTheme.coral.withValues(alpha: 0.3)),
+                      ),
+                      child: Text(
+                        'Category: ${config.theme}',
+                        style: GoogleFonts.outfit(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.coral,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+
+                const SizedBox(height: 24),
+
+                // Large code capsule button with copy
+                BouncyTap(
+                  onTap: () => _copy(code),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(32),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          code,
+                          style: GoogleFonts.outfit(
+                            fontSize: 30,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 6,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Icon(Icons.copy_rounded, color: AppTheme.mist, size: 20),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                AnimatedOpacity(
+                  opacity: _copied ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 200),
+                  child: Text(
+                    'Code copied to clipboard',
+                    style: GoogleFonts.outfit(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.lime,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // The one share action: the system share sheet carries the
+                // invite text with the link and the code, WhatsApp included.
+                FilledButton.icon(
+                  onPressed: () => _share(code, session.displayName, config: config),
+                  icon: const Icon(Icons.share_rounded, size: 18),
+                  label: Text(
+                    'Share invite',
+                    style: GoogleFonts.outfit(fontWeight: FontWeight.w800, fontSize: 15),
+                  ),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppTheme.lime,
+                    foregroundColor: AppTheme.navy950,
+                    minimumSize: const Size.fromHeight(52),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+                  ),
+                ),
+
+                const SizedBox(height: 28),
+
+                // Pulsing dots waiting indicator
+                const _WaitingIndicator(),
+
+                const SizedBox(height: 28),
+
+                // Back to games button
+                OutlinedButton(
+                  onPressed: () => Navigator.of(context).maybePop(),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size.fromHeight(52),
+                    side: BorderSide(color: Colors.white.withValues(alpha: 0.12)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
+                  ),
+                  child: Text(
+                    'Back to games',
+                    style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -343,7 +269,7 @@ class _WaitingIndicatorState extends State<_WaitingIndicator>
     return Column(
       children: [
         SizedBox(
-          height: 26,
+          height: 20,
           child: AnimatedBuilder(
             animation: _controller,
             builder: (context, _) {
@@ -357,13 +283,14 @@ class _WaitingIndicatorState extends State<_WaitingIndicator>
             },
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 10),
         Text(
           'Waiting for your opponent',
-          style: TextStyle(
-            fontSize: 14,
+          style: GoogleFonts.outfit(
+            fontSize: 13.5,
+            fontWeight: FontWeight.w600,
             letterSpacing: 0.3,
-            color: AppTheme.parchment.withValues(alpha: 0.7),
+            color: AppTheme.mist,
           ),
         ),
       ],
@@ -378,15 +305,14 @@ class _PulseDot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Ease in and out of full brightness once per cycle.
     final wave = (1 - (progress * 2 - 1).abs()).clamp(0.0, 1.0);
     return Container(
       width: 7,
       height: 7,
-      margin: const EdgeInsets.symmetric(horizontal: 5),
+      margin: const EdgeInsets.symmetric(horizontal: 4),
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: AppTheme.seed.withValues(alpha: 0.25 + wave * 0.75),
+        color: AppTheme.lime.withValues(alpha: 0.25 + wave * 0.75),
       ),
     );
   }

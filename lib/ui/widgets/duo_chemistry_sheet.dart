@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/word_utils.dart';
 import '../../models/friend.dart';
+import '../../models/room.dart';
 import '../../state/app_session.dart';
 import '../app_theme.dart';
 import '../layout.dart';
 import '../room_launcher.dart';
+import 'character_avatar.dart';
 import 'create_room_sheet.dart';
-import 'section_label.dart';
 
 /// Modal bottom sheet displaying Duo Chemistry stats and the shared Memory Bank
 /// of twinned words between two players.
@@ -29,7 +31,7 @@ class DuoChemistrySheet extends StatelessWidget {
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppTheme.inkRaised,
+      backgroundColor: AppTheme.navy900,
       constraints: const BoxConstraints(maxWidth: Layout.contentMaxWidth),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -48,7 +50,7 @@ class DuoChemistrySheet extends StatelessWidget {
 
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 20, 24, 28),
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 28),
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -59,7 +61,7 @@ class DuoChemistrySheet extends StatelessWidget {
                   width: 38,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: AppTheme.parchment.withValues(alpha: 0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -67,18 +69,7 @@ class DuoChemistrySheet extends StatelessWidget {
               const SizedBox(height: 20),
               Row(
                 children: [
-                  CircleAvatar(
-                    radius: 24,
-                    backgroundColor: AppTheme.seed.withValues(alpha: 0.16),
-                    child: Text(
-                      friend.name.isEmpty ? '?' : friend.name[0].toUpperCase(),
-                      style: const TextStyle(
-                        fontSize: 20,
-                        color: AppTheme.seed,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
+                  CharacterAvatar(name: friend.name, size: 48),
                   const SizedBox(width: 14),
                   Expanded(
                     child: Column(
@@ -86,19 +77,19 @@ class DuoChemistrySheet extends StatelessWidget {
                       children: [
                         Text(
                           friend.name,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: AppTheme.parchment,
+                          style: GoogleFonts.outfit(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
                           ),
                         ),
                         const SizedBox(height: 2),
-                        const Text(
+                        Text(
                           'Duo Chemistry & Memory Bank',
-                          style: TextStyle(
+                          style: GoogleFonts.outfit(
                             fontSize: 12.5,
-                            color: AppTheme.seed,
-                            fontWeight: FontWeight.w500,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.lime,
                           ),
                         ),
                       ],
@@ -106,12 +97,12 @@ class DuoChemistrySheet extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 22),
               Row(
                 children: [
                   Expanded(
                     child: _MetricCard(
-                      label: 'Best Sync',
+                      label: 'BEST SYNC',
                       value: bestStr,
                       detail: friend.bestSyncWord != null
                           ? titleCaseWord(friend.bestSyncWord!)
@@ -121,7 +112,7 @@ class DuoChemistrySheet extends StatelessWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: _MetricCard(
-                      label: 'Avg Rounds',
+                      label: 'AVG ROUNDS',
                       value: avgStr,
                       detail: '${friend.gamesPlayed} games',
                     ),
@@ -129,7 +120,7 @@ class DuoChemistrySheet extends StatelessWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: _MetricCard(
-                      label: 'Twinned',
+                      label: 'TWINNED',
                       value: '${friend.twinnedCount}',
                       detail: 'total syncs',
                     ),
@@ -137,13 +128,21 @@ class DuoChemistrySheet extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 24),
-              const SectionLabel('Memory Bank'),
-              const SizedBox(height: 8),
+              Text(
+                'MEMORY BANK',
+                style: GoogleFonts.outfit(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.5,
+                  color: AppTheme.mist,
+                ),
+              ),
+              const SizedBox(height: 6),
               Text(
                 'Words you and ${friend.name} converged on together.',
-                style: TextStyle(
+                style: GoogleFonts.outfit(
                   fontSize: 12,
-                  color: AppTheme.parchment.withValues(alpha: 0.6),
+                  color: AppTheme.mist,
                 ),
               ),
               const SizedBox(height: 14),
@@ -152,19 +151,19 @@ class DuoChemistrySheet extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 24),
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: AppTheme.inkCard,
-                    borderRadius: BorderRadius.circular(14),
+                    color: AppTheme.navy950,
+                    borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: AppTheme.parchment.withValues(alpha: 0.08),
+                      color: Colors.white.withValues(alpha: 0.08),
                     ),
                   ),
                   child: Text(
                     'No shared memories yet.\nPlay a game to log your first sync.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
+                    style: GoogleFonts.outfit(
                       fontSize: 13,
                       height: 1.5,
-                      color: AppTheme.parchment.withValues(alpha: 0.45),
+                      color: AppTheme.mist,
                     ),
                   ),
                 )
@@ -176,14 +175,14 @@ class DuoChemistrySheet extends StatelessWidget {
                     for (final word in friend.memoryBank)
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 7,
+                          horizontal: 14,
+                          vertical: 8,
                         ),
                         decoration: BoxDecoration(
-                          color: AppTheme.inkCard,
+                          color: AppTheme.navy950,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: AppTheme.converged.withValues(alpha: 0.35),
+                            color: AppTheme.lime.withValues(alpha: 0.35),
                           ),
                         ),
                         child: Row(
@@ -191,16 +190,16 @@ class DuoChemistrySheet extends StatelessWidget {
                           children: [
                             const Icon(
                               Icons.all_inclusive_rounded,
-                              size: 13,
-                              color: AppTheme.converged,
+                              size: 14,
+                              color: AppTheme.lime,
                             ),
                             const SizedBox(width: 6),
                             Text(
                               titleCaseWord(word),
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: AppTheme.parchment,
+                              style: GoogleFonts.outfit(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
                               ),
                             ),
                           ],
@@ -208,7 +207,161 @@ class DuoChemistrySheet extends StatelessWidget {
                       ),
                   ],
                 ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 24),
+              Text(
+                'PAST GAMES',
+                style: GoogleFonts.outfit(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.5,
+                  color: AppTheme.mist,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Matches you and ${friend.name} played together.',
+                style: GoogleFonts.outfit(
+                  fontSize: 12,
+                  color: AppTheme.mist,
+                ),
+              ),
+              const SizedBox(height: 14),
+              StreamBuilder<List<Room>>(
+                stream: session.myRooms,
+                builder: (context, snapshot) {
+                  final games = (snapshot.data ?? const <Room>[])
+                      .where((r) =>
+                          r.status == RoomStatus.finished &&
+                          (r.players.contains(friend.id) ||
+                              r.opponentOf(session.localPlayerId) == friend.id ||
+                              r.nameOf(r.opponentOf(session.localPlayerId)).toLowerCase() ==
+                                  friend.name.toLowerCase()))
+                      .toList();
+
+                  if (games.isEmpty) {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(vertical: 18),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: AppTheme.navy950,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.08),
+                        ),
+                      ),
+                      child: Text(
+                        'No finished games with ${friend.name} yet.',
+                        style: GoogleFonts.outfit(
+                          fontSize: 13,
+                          color: AppTheme.mist,
+                        ),
+                      ),
+                    );
+                  }
+
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: AppTheme.navy950,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.08),
+                      ),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(18),
+                      child: Column(
+                        children: [
+                          for (var i = 0; i < games.length; i++) ...[
+                            if (i > 0)
+                              Divider(
+                                height: 1,
+                                color: Colors.white.withValues(alpha: 0.07),
+                              ),
+                            InkWell(
+                              onTap: () {
+                                Navigator.of(context).pop();
+                                RoomLauncher.open(context, games[i].code);
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 32,
+                                      height: 32,
+                                      decoration: BoxDecoration(
+                                        color: games[i].finishReason ==
+                                                FinishReason.converged
+                                            ? AppTheme.lime
+                                                .withValues(alpha: 0.15)
+                                            : Colors.white
+                                                .withValues(alpha: 0.08),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      alignment: Alignment.center,
+                                      child: Icon(
+                                        games[i].finishReason ==
+                                                FinishReason.converged
+                                            ? Icons.check_rounded
+                                            : Icons.close_rounded,
+                                        size: 18,
+                                        color: games[i].finishReason ==
+                                                FinishReason.converged
+                                            ? AppTheme.lime
+                                            : AppTheme.mist,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            games[i].finishReason ==
+                                                    FinishReason.converged
+                                                ? (games[i].lastRound?.p1Word !=
+                                                        null
+                                                    ? 'Matched on "${titleCaseWord(games[i].lastRound!.p1Word)}"'
+                                                    : 'Twinned')
+                                                : 'No match in ${games[i].rounds.length} rounds',
+                                            style: GoogleFonts.outfit(
+                                              fontSize: 14.5,
+                                              fontWeight: FontWeight.w700,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            '${games[i].rounds.length} ${games[i].rounds.length == 1 ? "round" : "rounds"} · Room ${games[i].code}',
+                                            style: GoogleFonts.outfit(
+                                              fontSize: 12,
+                                              color: AppTheme.mist,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const Icon(
+                                      Icons.chevron_right_rounded,
+                                      color: AppTheme.mist,
+                                      size: 18,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 26),
               FilledButton.icon(
                 onPressed: () async {
                   Navigator.of(context).pop();
@@ -222,7 +375,21 @@ class DuoChemistrySheet extends StatelessWidget {
                   );
                 },
                 icon: const Icon(Icons.play_arrow_rounded),
-                label: Text('Play with ${friend.name}'),
+                label: Text(
+                  'Play with ${friend.name}',
+                  style: GoogleFonts.outfit(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppTheme.lime,
+                  foregroundColor: AppTheme.navy950,
+                  minimumSize: const Size.fromHeight(50),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(25),
+                  ),
+                ),
               ),
             ],
           ),
@@ -248,10 +415,10 @@ class _MetricCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
       decoration: BoxDecoration(
-        color: AppTheme.inkCard,
-        borderRadius: BorderRadius.circular(14),
+        color: AppTheme.navy950,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: AppTheme.parchment.withValues(alpha: 0.08),
+          color: Colors.white.withValues(alpha: 0.08),
         ),
       ),
       child: Column(
@@ -259,19 +426,20 @@ class _MetricCard extends StatelessWidget {
         children: [
           Text(
             label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.parchment.withValues(alpha: 0.5),
+            style: GoogleFonts.outfit(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8,
+              color: AppTheme.mist,
             ),
           ),
           const SizedBox(height: 6),
           Text(
             value,
-            style: const TextStyle(
+            style: GoogleFonts.outfit(
               fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: AppTheme.parchment,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
             ),
           ),
           if (detail != null) ...[
@@ -280,9 +448,10 @@ class _MetricCard extends StatelessWidget {
               detail!,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: GoogleFonts.outfit(
                 fontSize: 11,
-                color: AppTheme.seed,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.lime,
               ),
             ),
           ],

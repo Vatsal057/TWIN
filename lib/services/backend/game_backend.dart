@@ -42,6 +42,11 @@ abstract class GameBackend {
   Future<void> setDisplayName(String name);
   String get displayName;
 
+  /// Publishes the player's chosen avatar so it lands in their rooms and
+  /// the other player's screen shows the face they actually picked.
+  Future<void> setAvatarId(String avatarId);
+  String get avatarId;
+
   // ---- rooms ----
 
   /// Creates a room with a unique short code and `status: waiting`.
@@ -55,6 +60,12 @@ abstract class GameBackend {
 
   /// Live view of the room document. Emits null if the room disappears.
   Stream<Room> watchRoom(String code);
+
+  /// Every room the local player is part of, newest activity first.
+  ///
+  /// This is what powers the "Your games" list: active games to jump back into
+  /// and finished ones for history.
+  Stream<List<Room>> watchMyRooms();
 
   Future<Room?> fetchRoom(String code);
 
@@ -124,6 +135,15 @@ abstract class GameBackend {
     required bool converged,
     String? convergedWord,
   });
+
+  /// Fills the empty second seat of a waiting room with the built-in practice
+  /// partner, so a solo player can try the full loop without a second device.
+  ///
+  /// The default throws because only backends that can stand in for a player
+  /// (the local one) support it.
+  Future<void> addPracticePartner(String code) async {
+    throw UnsupportedError('$runtimeType cannot add a practice partner');
+  }
 
   /// Invites addressed to the local player.
   Stream<List<GameInvite>> watchInvites();

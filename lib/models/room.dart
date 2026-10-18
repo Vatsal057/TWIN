@@ -43,6 +43,7 @@ class Room {
     required this.hostId,
     required this.players,
     required this.playerNames,
+    this.playerAvatars = const {},
     required this.status,
     required this.config,
     required this.currentRound,
@@ -67,6 +68,11 @@ class Room {
   final List<String> players;
 
   final Map<String, String> playerNames;
+
+  /// Avatar id each player picked on their own device, keyed by player id.
+  /// Shared through the room so both screens show the face its owner chose,
+  /// not a guess. Empty for rooms created before avatars were shared.
+  final Map<String, String> playerAvatars;
   final RoomStatus status;
   final GameConfig config;
 
@@ -118,6 +124,15 @@ class Room {
     return playerNames[playerId] ?? 'Player';
   }
 
+  /// The avatar [playerId] picked on their own device. Null when the room
+  /// has none stored for them, so callers can fall back to the face derived
+  /// from their name.
+  String? avatarOf(String? playerId) {
+    if (playerId == null) return null;
+    final id = playerAvatars[playerId];
+    return (id == null || id.isEmpty) ? null : id;
+  }
+
   /// True once the current round has both submissions and is ready to resolve.
   bool get isReadyToReveal =>
       isFull && submittedBy.length >= 2 && rounds.length < currentRound;
@@ -140,6 +155,7 @@ class Room {
     'hostId': hostId,
     'players': players,
     'playerNames': playerNames,
+    'playerAvatars': playerAvatars,
     'status': status.wireName,
     'config': config.toMap(),
     'currentRound': currentRound,
@@ -150,6 +166,8 @@ class Room {
     'rematchRoomCode': rematchRoomCode,
     'lastNudgeBy': lastNudgeBy,
     'lastNudgeAt': lastNudgeAt?.toIso8601String(),
+    'createdAt': createdAt?.toIso8601String(),
+    'updatedAt': updatedAt?.toIso8601String(),
   };
 
   factory Room.fromMap(String code, Map<String, Object?> map) {
@@ -161,6 +179,9 @@ class Room {
           .toList(growable: false),
       playerNames: ((map['playerNames'] as Map?) ?? const {}).map(
         (k, v) => MapEntry(k.toString(), v?.toString() ?? 'Player'),
+      ),
+      playerAvatars: ((map['playerAvatars'] as Map?) ?? const {}).map(
+        (k, v) => MapEntry(k.toString(), v?.toString() ?? ''),
       ),
       status: RoomStatusCodec.fromWire(map['status']),
       config: GameConfig.fromMap(
@@ -175,6 +196,8 @@ class Room {
           .map((m) => GameRound.fromMap(m.cast<String, Object?>()))
           .toList(growable: false),
       finishReason: FinishReasonCodec.fromWire(map['finishReason']),
+      createdAt: _parseDateTime(map['createdAt']),
+      updatedAt: _parseDateTime(map['updatedAt']),
       rematchOf: map['rematchOf'] as String?,
       rematchRoomCode: map['rematchRoomCode'] as String?,
       lastNudgeBy: map['lastNudgeBy'] as String?,
@@ -195,12 +218,14 @@ class Room {
   Room copyWith({
     List<String>? players,
     Map<String, String>? playerNames,
+    Map<String, String>? playerAvatars,
     RoomStatus? status,
     GameConfig? config,
     int? currentRound,
     List<String>? submittedBy,
     List<GameRound>? rounds,
     FinishReason? finishReason,
+    DateTime? updatedAt,
     String? rematchRoomCode,
     String? lastNudgeBy,
     DateTime? lastNudgeAt,
@@ -210,6 +235,7 @@ class Room {
       hostId: hostId,
       players: players ?? this.players,
       playerNames: playerNames ?? this.playerNames,
+      playerAvatars: playerAvatars ?? this.playerAvatars,
       status: status ?? this.status,
       config: config ?? this.config,
       currentRound: currentRound ?? this.currentRound,
@@ -217,7 +243,7 @@ class Room {
       rounds: rounds ?? this.rounds,
       finishReason: finishReason ?? this.finishReason,
       createdAt: createdAt,
-      updatedAt: updatedAt,
+      updatedAt: updatedAt ?? this.updatedAt,
       rematchOf: rematchOf,
       rematchRoomCode: rematchRoomCode ?? this.rematchRoomCode,
       lastNudgeBy: lastNudgeBy ?? this.lastNudgeBy,

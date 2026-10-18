@@ -1,19 +1,26 @@
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/word_utils.dart';
-import '../../models/game_round.dart';
 import '../../models/room.dart';
 import '../../services/deep_link_service.dart';
 import '../app_theme.dart';
-import 'convergence_hero.dart';
+import 'character_avatar.dart';
 
-/// 9:16 Story-format victory card designed for 1080 × 1920 export
+/// 9:16 Story-format victory card designed for 1080 x 1920 export
 /// to Instagram Stories, WhatsApp Status, and camera rolls.
+///
+/// The look follows the reference win card: a TWINNING headline over
+/// soft radial rays and scattered confetti, the two players' avatar
+/// faces side by side with a heart badge on the seam, the matched word
+/// in lime underneath (sized to be read, not to shout), then the round
+/// count and the perfect-match stat side by side.
 class VictoryCard extends StatelessWidget {
   const VictoryCard({
     super.key,
@@ -28,309 +35,336 @@ class VictoryCard extends StatelessWidget {
   final String opponentName;
   final bool localIsP1;
 
-  // Strict Design Tokens from Design Definition
-  static const colorBg = Color(0xFF14120F);
-  static const colorContainer = Color(0xFF1B1814);
-  static const colorBorder = Color(0xFF302A23);
-  static const colorParchment = Color(0xFFF2EDE3);
-  static const colorMuted = Color(0xFFB7AEA1);
-  static const colorAccent = Color(0xFF9AD8A9);
-  static const colorMint = Color(0xFFD9F5DC);
-  static const colorBadgeBorder = Color(0xFF3C6F4D);
-  static const colorAlice = Color(0xFFD9A441);
-  static const colorBob = Color(0xFF6EC5D9);
-  static const colorCta = Color(0xFFB8E8C1);
+  static const colorBg = AppTheme.navy950;
+  static const colorMuted = AppTheme.mist;
+  static const colorAccent = AppTheme.lime;
 
   @override
   Widget build(BuildContext context) {
-    final p1Name = localIsP1 ? localName : opponentName;
-    final p2Name = localIsP1 ? opponentName : localName;
     final converged = room.converged;
     final lastRound = room.lastRound;
+    final roundsCount = room.rounds.length;
+    final localId = localIsP1 ? room.p1Id : room.p2Id;
+    final opponentId = localIsP1 ? room.p2Id : room.p1Id;
 
     return Container(
       width: 360,
       height: 640,
-      padding: const EdgeInsets.fromLTRB(24, 32, 24, 36),
       decoration: BoxDecoration(
         color: colorBg,
         borderRadius: BorderRadius.circular(28),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // 03 — Header: Editorial serif wordmark (No room code)
-          Row(
-            children: const [
-              Text(
-                'TWIN',
-                style: TextStyle(
-                  fontFamily: 'serif',
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 4,
-                  color: colorParchment,
-                ),
-              ),
-            ],
-          ),
-
-          const Spacer(flex: 3),
-
-          // 04 — Players: Restrained pills around ALICE × BOB
-          Center(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _PlayerPill(name: p1Name, color: colorAlice),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  child: Text(
-                    '×',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w300,
-                      color: colorParchment.withValues(alpha: 0.6),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(28),
+        child: Stack(
+          children: [
+            const Positioned.fill(
+              child: CustomPaint(painter: _RaysPainter()),
+            ),
+            const Positioned.fill(
+              child: CustomPaint(painter: _ConfettiPainter()),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 38, 24, 30),
+              child: Column(
+                children: [
+                  // Headline
+                  Text(
+                    converged ? 'TWINNING' : 'SO CLOSE',
+                    style: GoogleFonts.outfit(
+                      fontSize: 37,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.5,
+                      color: Colors.white,
                     ),
                   ),
-                ),
-                _PlayerPill(name: p2Name, color: colorBob),
-              ],
-            ),
-          ),
 
-          const SizedBox(height: 32),
+                  const SizedBox(height: 28),
 
-          // 05 — Victory Statement (Emotional Centerpiece)
-          Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  converged ? 'YOU BOTH SAID' : 'STOPPED AT',
-                  style: const TextStyle(
-                    fontSize: 9.5,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 2.2,
-                    color: colorMuted,
+                  // The pair: real avatar faces, heart badge on the seam
+                  _AvatarPair(
+                    localName: localName,
+                    opponentName: opponentName,
+                    localAvatarId: room.avatarOf(localId),
+                    opponentAvatarId: room.avatarOf(opponentId),
                   ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  converged && lastRound != null
-                      ? titleCaseWord(lastRound.p1Word).toUpperCase()
-                      : '${room.rounds.length} ROUNDS',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 34,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.0,
-                    color: colorMint,
-                  ),
-                ),
-                const SizedBox(height: 14),
 
-                // 06 — Achievement badge (dynamic round count)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 7),
-                  decoration: BoxDecoration(
-                    color: const Color.fromRGBO(90, 190, 125, 0.10),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: colorBadgeBorder, width: 1),
+                  const SizedBox(height: 28),
+
+                  // The matched word, kept readable rather than huge
+                  if (converged && lastRound != null) ...[
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        titleCaseWord(lastRound.p1Word).toUpperCase(),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        style: GoogleFonts.outfit(
+                          fontSize: 42,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.5,
+                          color: colorAccent,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      '$localName + $opponentName',
+                      style: GoogleFonts.outfit(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: colorMuted,
+                      ),
+                    ),
+                  ] else ...[
+                    Text(
+                      roundsCount == 1 ? '1 ROUND' : '$roundsCount ROUNDS',
+                      style: GoogleFonts.outfit(
+                        fontSize: 32,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.0,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      '$localName + $opponentName',
+                      style: GoogleFonts.outfit(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: colorMuted,
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 32),
+
+                  // Stats: rounds | perfect match
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '$roundsCount',
+                            style: GoogleFonts.outfit(
+                              fontSize: 32,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'ROUNDS',
+                            style: GoogleFonts.outfit(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1.8,
+                              color: colorMuted,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Container(
+                        width: 1,
+                        height: 46,
+                        margin: const EdgeInsets.symmetric(horizontal: 28),
+                        color: Colors.white.withValues(alpha: 0.18),
+                      ),
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            converged
+                                ? Icons.emoji_events_rounded
+                                : Icons.favorite_rounded,
+                            size: 27,
+                            color: colorAccent,
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            converged ? 'PERFECT\nMATCH' : 'GOOD\nRUN',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.outfit(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1.8,
+                              height: 1.5,
+                              color: colorMuted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                  child: Text(
-                    converged
-                        ? (room.rounds.length == 1
-                            ? 'TWINNED IN 1 ROUND'
-                            : 'TWINNED IN ${room.rounds.length} ROUNDS')
-                        : 'PLAYED ${room.rounds.length} ROUNDS',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
+
+                  const Spacer(),
+
+                  // Wordmark
+                  Text(
+                    'Twin',
+                    style: GoogleFonts.outfit(
+                      fontSize: 23,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    'twinnn.web.app',
+                    style: GoogleFonts.outfit(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w600,
                       letterSpacing: 1.2,
-                      color: colorAccent,
+                      color: colorMuted,
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // 07 — Convergence Trail (Proof)
-          if (room.rounds.isNotEmpty)
-            _ConvergenceCard(rounds: room.rounds),
-
-          const Spacer(flex: 5),
-
-          // 08 — CTA (Invitation / Viral hook)
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: const [
-              Text(
-                'Think you can twin? →',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: colorCta,
-                  letterSpacing: -0.1,
-                ),
-              ),
-              SizedBox(height: 4),
-              Text(
-                'twinnn.web.app',
-                style: TextStyle(
-                  fontFamily: 'monospace',
-                  fontSize: 8.5,
-                  fontWeight: FontWeight.w600,
-                  color: colorMuted,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PlayerPill extends StatelessWidget {
-  const _PlayerPill({required this.name, required this.color});
-
-  final String name;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.35), width: 1),
-      ),
-      child: Text(
-        name,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-          color: color,
-          letterSpacing: 0.2,
+          ],
         ),
       ),
     );
   }
 }
 
-class _TrajectoryStep {
-  final String text1;
-  final String text2;
-  final bool matched;
-  final bool isEllipsis;
-
-  const _TrajectoryStep({
-    this.text1 = '',
-    this.text2 = '',
-    this.matched = false,
-    this.isEllipsis = false,
+/// The two players as their chosen avatar faces, side by side, with a
+/// small heart badge bridging the gap. This stands in for the old
+/// overlapping initial circles, which read as a Venn diagram; faces say
+/// "the two of us" much better, and they are the actual faces each
+/// player picked (synced through the room).
+class _AvatarPair extends StatelessWidget {
+  const _AvatarPair({
+    required this.localName,
+    required this.opponentName,
+    required this.localAvatarId,
+    required this.opponentAvatarId,
   });
-}
 
-class _ConvergenceCard extends StatelessWidget {
-  const _ConvergenceCard({required this.rounds});
-
-  final List<GameRound> rounds;
-
-  List<_TrajectoryStep> _buildTrajectory() {
-    if (rounds.length <= 5) {
-      return rounds
-          .map((r) => _TrajectoryStep(
-                text1: r.p1Word,
-                text2: r.p2Word,
-                matched: r.matched,
-              ))
-          .toList();
-    }
-
-    // Dynamic trajectory scaling: first 2 -> ellipsis -> last 2
-    return [
-      _TrajectoryStep(
-        text1: rounds[0].p1Word,
-        text2: rounds[0].p2Word,
-        matched: rounds[0].matched,
-      ),
-      _TrajectoryStep(
-        text1: rounds[1].p1Word,
-        text2: rounds[1].p2Word,
-        matched: rounds[1].matched,
-      ),
-      const _TrajectoryStep(isEllipsis: true),
-      _TrajectoryStep(
-        text1: rounds[rounds.length - 2].p1Word,
-        text2: rounds[rounds.length - 2].p2Word,
-        matched: rounds[rounds.length - 2].matched,
-      ),
-      _TrajectoryStep(
-        text1: rounds[rounds.length - 1].p1Word,
-        text2: rounds[rounds.length - 1].p2Word,
-        matched: rounds[rounds.length - 1].matched,
-      ),
-    ];
-  }
+  final String localName;
+  final String opponentName;
+  final String? localAvatarId;
+  final String? opponentAvatarId;
 
   @override
   Widget build(BuildContext context) {
-    final steps = _buildTrajectory();
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      decoration: BoxDecoration(
-        color: VictoryCard.colorContainer,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: VictoryCard.colorBorder, width: 1),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+    return SizedBox(
+      width: 196,
+      height: 88,
+      child: Stack(
+        alignment: Alignment.center,
         children: [
-          for (final step in steps)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 3.5),
-              child: step.isEllipsis
-                  ? Text(
-                      '⋮',
-                      style: TextStyle(
-                        fontSize: 13,
-                        height: 1.0,
-                        color: VictoryCard.colorMuted.withValues(alpha: 0.6),
-                      ),
-                    )
-                  : step.matched
-                      ? Text(
-                          titleCaseWord(step.text1).toUpperCase(),
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.6,
-                            color: VictoryCard.colorAccent,
-                          ),
-                        )
-                      : Text(
-                          '${titleCaseWord(step.text1)} · ${titleCaseWord(step.text2)}',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: VictoryCard.colorParchment,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              CharacterAvatar(
+                name: localName,
+                size: 88,
+                avatarId: localAvatarId,
+              ),
+              CharacterAvatar(
+                name: opponentName,
+                size: 88,
+                avatarId: opponentAvatarId,
+              ),
+            ],
+          ),
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: AppTheme.navy900,
+              shape: BoxShape.circle,
+              border: Border.all(color: AppTheme.navy950, width: 2.5),
             ),
+            child: const Icon(
+              Icons.favorite_rounded,
+              size: 16,
+              color: AppTheme.lime,
+            ),
+          ),
         ],
       ),
     );
   }
+}
+
+/// Soft radial rays fanning down from behind the headline, as on the
+/// reference card: alternate wedges of very faint lime.
+class _RaysPainter extends CustomPainter {
+  const _RaysPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final focal = Offset(size.width / 2, size.height * 0.16);
+    final paint = Paint()..color = AppTheme.lime.withValues(alpha: 0.05);
+    const wedges = 12;
+    const startDeg = 18.0;
+    const endDeg = 162.0;
+    final radius = size.height * 1.15;
+
+    for (var i = 0; i < wedges; i += 2) {
+      final a1 = (startDeg + (endDeg - startDeg) * i / wedges) * math.pi / 180;
+      final a2 =
+          (startDeg + (endDeg - startDeg) * (i + 1) / wedges) * math.pi / 180;
+      final path = Path()
+        ..moveTo(focal.dx, focal.dy)
+        ..lineTo(focal.dx + radius * math.cos(a1), focal.dy + radius * math.sin(a1))
+        ..lineTo(focal.dx + radius * math.cos(a2), focal.dy + radius * math.sin(a2))
+        ..close();
+      canvas.drawPath(path, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// Scattered confetti pieces around the card edges, kept clear of the
+/// centre column where the content sits. Positions are fixed so every
+/// export of the same card looks identical.
+class _ConfettiPainter extends CustomPainter {
+  const _ConfettiPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // (x, y as fractions of the card, width, rotation in degrees, colour)
+    const pieces = [
+      (0.07, 0.09, 15.0, -32.0, AppTheme.lime),
+      (0.18, 0.045, 12.0, 24.0, AppTheme.coral),
+      (0.84, 0.06, 15.0, 38.0, AppTheme.lime),
+      (0.95, 0.15, 12.0, -18.0, AppTheme.coral),
+      (0.91, 0.30, 14.0, 52.0, AppTheme.lime),
+      (0.05, 0.31, 13.0, -44.0, AppTheme.coral),
+      (0.09, 0.52, 12.0, 30.0, AppTheme.lime),
+      (0.94, 0.54, 13.0, -26.0, AppTheme.lime),
+      (0.06, 0.75, 14.0, 44.0, AppTheme.coral),
+      (0.92, 0.77, 15.0, -38.0, AppTheme.lime),
+      (0.22, 0.93, 13.0, -20.0, AppTheme.lime),
+      (0.76, 0.94, 12.0, 28.0, AppTheme.coral),
+      (0.33, 0.03, 11.0, 60.0, AppTheme.lime),
+      (0.64, 0.035, 12.0, -52.0, AppTheme.coral),
+      (0.97, 0.42, 11.0, 18.0, AppTheme.coral),
+      (0.03, 0.45, 11.0, -60.0, AppTheme.lime),
+    ];
+
+    for (final (fx, fy, w, rot, color) in pieces) {
+      canvas.save();
+      canvas.translate(fx * size.width, fy * size.height);
+      canvas.rotate(rot * math.pi / 180);
+      final rect = RRect.fromRectAndRadius(
+        Rect.fromCenter(center: Offset.zero, width: w, height: w * 0.45),
+        const Radius.circular(2),
+      );
+      canvas.drawRRect(rect, Paint()..color = color);
+      canvas.restore();
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 /// Modal sheet that renders the victory card in a RepaintBoundary and exports
@@ -359,7 +393,7 @@ class VictoryCardSheet extends StatefulWidget {
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppTheme.inkRaised,
+      backgroundColor: AppTheme.navy900,
       constraints: const BoxConstraints(maxWidth: 480),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -397,10 +431,7 @@ class _VictoryCardSheetState extends State<VictoryCardSheet> {
 
       final pngBytes = byteData.buffer.asUint8List();
       final finalWord = widget.room.lastRound?.p1Word ?? 'TWIN';
-      final score = calcResonanceScore(
-        widget.room.rounds.length,
-        widget.room.converged,
-      );
+      final roundsCount = widget.room.rounds.length;
 
       final xFile = XFile.fromData(
         pngBytes,
@@ -415,8 +446,8 @@ class _VictoryCardSheetState extends State<VictoryCardSheet> {
               ? 'We twinned on "${titleCaseWord(finalWord)}"!'
               : 'Our TWIN game results',
           text: widget.room.converged
-              ? '${widget.localName} & ${widget.opponentName} scored $score% Resonance on "${titleCaseWord(finalWord).toUpperCase()}"!\nPlay: https://${DeepLinkService.webHost}'
-              : '${widget.localName} & ${widget.opponentName} played ${widget.room.rounds.length} rounds on TWIN!\nPlay: https://${DeepLinkService.webHost}',
+              ? '${widget.localName} & ${widget.opponentName} twinned on "${titleCaseWord(finalWord).toUpperCase()}" in $roundsCount ${roundsCount == 1 ? 'round' : 'rounds'}!\nPlay: https://${DeepLinkService.webHost}'
+              : '${widget.localName} & ${widget.opponentName} played $roundsCount rounds on TWIN!\nPlay: https://${DeepLinkService.webHost}',
         ),
       );
     } catch (e) {
@@ -447,26 +478,26 @@ class _VictoryCardSheetState extends State<VictoryCardSheet> {
                   width: 36,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: AppTheme.parchment.withValues(alpha: 0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
               ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'Victory Card',
-                style: TextStyle(
+                style: GoogleFonts.outfit(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
-                  color: AppTheme.parchment,
+                  color: Colors.white,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
                 'Snapshotted for Instagram Stories, Twitter & camera roll.',
-                style: TextStyle(
+                style: GoogleFonts.outfit(
                   fontSize: 12,
-                  color: AppTheme.parchment.withValues(alpha: 0.55),
+                  color: AppTheme.mist,
                 ),
               ),
               const SizedBox(height: 20),
@@ -486,7 +517,16 @@ class _VictoryCardSheetState extends State<VictoryCardSheet> {
               // Action button
               FilledButton.icon(
                 style: FilledButton.styleFrom(
+                  backgroundColor: AppTheme.lime,
+                  foregroundColor: AppTheme.navy950,
                   minimumSize: const Size.fromHeight(48),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  textStyle: GoogleFonts.outfit(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 onPressed: _isExporting ? null : _shareImage,
                 icon: _isExporting
@@ -495,7 +535,7 @@ class _VictoryCardSheetState extends State<VictoryCardSheet> {
                         height: 18,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: AppTheme.ink,
+                          color: AppTheme.navy950,
                         ),
                       )
                     : const Icon(Icons.share_rounded, size: 20),

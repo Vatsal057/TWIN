@@ -124,6 +124,46 @@ class _TwinningBurstState extends State<TwinningBurst>
                 ColoredBox(
                   color: AppTheme.convergedBright.withValues(alpha: flash),
                 ),
+              // React-prototype 14-particle circular radial confetti burst
+              if (t > 0.1 && t < 0.95)
+                Center(
+                  child: SizedBox(
+                    width: 320,
+                    height: 320,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        for (int i = 0; i < 14; i++)
+                          Transform.translate(
+                            offset: Offset(
+                              math.cos((i / 14.0) * math.pi * 2) * (180.0 * Curves.easeOutCubic.transform(t)),
+                              math.sin((i / 14.0) * math.pi * 2) * (180.0 * Curves.easeOutCubic.transform(t)),
+                            ),
+                            child: Transform.scale(
+                              scale: (1.0 - t).clamp(0.0, 1.0),
+                              child: Opacity(
+                                opacity: ((1.0 - t) * 1.4).clamp(0.0, 1.0),
+                                child: Container(
+                                  width: 12,
+                                  height: 12,
+                                  decoration: BoxDecoration(
+                                    color: i % 2 == 0 ? AppTheme.lime : AppTheme.coral,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: (i % 2 == 0 ? AppTheme.lime : AppTheme.coral).withValues(alpha: 0.6),
+                                        blurRadius: 8,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
               Center(
                 child: Padding(
                   // Vertical room for the rotated glyphs to swing into.

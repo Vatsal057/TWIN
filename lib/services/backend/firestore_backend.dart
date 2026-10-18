@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
+import '../../core/app_avatars.dart';
 import '../../core/game_config.dart';
 import '../../models/chat_message.dart';
 import '../../models/friend.dart';
@@ -20,14 +21,17 @@ class FirestoreBackend implements GameBackend {
     FirebaseFirestore? firestore,
     FirebaseAuth? auth,
     String displayName = 'Player',
+    String avatarId = AppAvatars.fallback,
   }) : _db = firestore ?? FirebaseFirestore.instance,
        _auth = auth ?? FirebaseAuth.instance,
-       _displayName = displayName;
+       _displayName = displayName,
+       _avatarId = avatarId;
 
   final FirebaseFirestore _db;
   final FirebaseAuth _auth;
 
   String _displayName;
+  String _avatarId;
   String _uid = '';
 
   @override
@@ -41,6 +45,9 @@ class FirestoreBackend implements GameBackend {
 
   @override
   String get displayName => _displayName;
+
+  @override
+  String get avatarId => _avatarId;
 
   CollectionReference<Map<String, dynamic>> get _rooms =>
       _db.collection('rooms');
@@ -132,6 +139,22 @@ class FirestoreBackend implements GameBackend {
     }, SetOptions(merge: true));
   }
 
+  @override
+  Future<void> setAvatarId(String avatarId) async {
+    if (!AppAvatars.isValid(avatarId)) return;
+    _avatarId = avatarId;
+    if (_uid.isEmpty) return;
+    await _db.collection('users').doc(_uid).set({
+      'avatarId': avatarId,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+    // The new face reaches rooms the player is in without ever listing
+    // the rooms collection (the security rules forbid listing rooms:
+    // codes are shared out of band, never browsed). Instead the current
+    // name and avatar ride along on the writes play already makes:
+    // room create, join and rejoin, and every word submission.
+  }
+
   // ---------------------------------------------------------------- rooms
 
   @override
@@ -166,6 +189,7 @@ class FirestoreBackend implements GameBackend {
             'hostId': _uid,
             'players': [_uid],
             'playerNames': {_uid: _displayName},
+            'playerAvatars': {_uid: _avatarId},
             'status': RoomStatus.waiting.wireName,
             'config': config.toMap(),
             'currentRound': 1,
@@ -238,6 +262,7 @@ class FirestoreBackend implements GameBackend {
       await _guard(
         () => ref.update({
           'playerNames.$_uid': _displayName,
+          'playerAvatars.$_uid': _avatarId,
           'updatedAt': FieldValue.serverTimestamp(),
         }),
         'Could not rejoin that room.',
@@ -274,6 +299,7 @@ class FirestoreBackend implements GameBackend {
         tx.update(ref, {
           'players': FieldValue.arrayUnion([_uid]),
           'playerNames.$_uid': _displayName,
+          'playerAvatars.$_uid': _avatarId,
           // Both clients are listening; this is the flip that moves them into
           // the game at the same moment.
           'status': RoomStatus.active.wireName,
@@ -305,6 +331,26 @@ class FirestoreBackend implements GameBackend {
   }
 
   @override
+  Stream<List<Room>> watchMyRooms() {
+    _requireAuth();
+    return _rooms
+        .where('players', arrayContains: _uid)
+        .snapshots()
+        .map((snap) {
+      final rooms = snap.docs
+          .map((doc) => Room.fromMap(doc.id, doc.data()))
+          .where((room) => room.players.contains(_uid))
+          .toList()
+        ..sort((a, b) {
+          final aAt = a.updatedAt ?? a.createdAt ?? DateTime(0);
+          final bAt = b.updatedAt ?? b.createdAt ?? DateTime(0);
+          return bAt.compareTo(aAt);
+        });
+      return List.unmodifiable(rooms);
+    });
+  }
+
+  @override
   Future<Room?> fetchRoom(String code) async {
     final snap = await _room(code).get();
     if (!snap.exists) return null;
@@ -330,6 +376,12 @@ class FirestoreBackend implements GameBackend {
     });
     batch.update(_room(code), {
       'submittedBy': FieldValue.arrayUnion([_uid]),
+      // Identity rides along on every submission, so a name or avatar
+      // changed mid-game shows on the other player's screen within a
+      // round, with no need to list the rooms collection (the rules
+      // forbid listing rooms).
+      'playerNames.$_uid': _displayName,
+      'playerAvatars.$_uid': _avatarId,
       'updatedAt': FieldValue.serverTimestamp(),
     });
     await _guard(batch.commit, 'Could not send your word.');
@@ -632,6 +684,14 @@ class FirestoreBackend implements GameBackend {
         .collection('invites')
         .doc(roomCode)
         .delete();
+  }
+
+  @override
+  Future<void> addPracticePartner(String code) async {
+    throw const BackendException(
+      'The practice partner is only available in offline mode. Share the '
+      'room code with a friend to play for real.',
+    );
   }
 
   @override

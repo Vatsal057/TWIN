@@ -27,7 +27,7 @@ class LifetimeStats {
 }
 
 /// Manages local persistent lifetime statistics and conceptual bridge words.
-class StatsService {
+class StatsService extends ChangeNotifier {
   StatsService._();
   static final StatsService instance = StatsService._();
 
@@ -36,6 +36,9 @@ class StatsService {
   static const _kRoundsPlayed = 'stats_rounds_played';
   static const _kFastestRounds = 'stats_fastest_rounds';
   static const _kBridgeWords = 'stats_bridge_words';
+
+  LifetimeStats? _cached;
+  LifetimeStats? get cached => _cached;
 
   Future<LifetimeStats> getStats() async {
     final prefs = await SharedPreferences.getInstance();
@@ -63,13 +66,20 @@ class StatsService {
     final sortedWords = map.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
-    return LifetimeStats(
+    final stats = LifetimeStats(
       totalGamesPlayed: played,
       totalGamesTwinned: twinned,
       totalRoundsPlayed: rounds,
       fastestConvergenceRounds: fastest,
       topBridgeWords: sortedWords.take(15).toList(growable: false),
     );
+    _cached = stats;
+    return stats;
+  }
+
+  Future<void> reload() async {
+    await getStats();
+    notifyListeners();
   }
 
   Future<void> recordRoundWord(String rawWord) async {
@@ -93,6 +103,8 @@ class StatsService {
 
       map[word] = (map[word] ?? 0) + 1;
       await prefs.setString(_kBridgeWords, jsonEncode(map));
+      await getStats();
+      notifyListeners();
     } catch (e) {
       debugPrint('Error recording bridge word: $e');
     }
@@ -123,6 +135,8 @@ class StatsService {
           await recordRoundWord(twinnedWord);
         }
       }
+      await getStats();
+      notifyListeners();
     } catch (e) {
       debugPrint('Error recording game result: $e');
     }

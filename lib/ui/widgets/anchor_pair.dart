@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-
+import 'package:google_fonts/google_fonts.dart';
 import '../../core/word_utils.dart';
 import '../app_theme.dart';
+import 'reference_word_sticker.dart';
 
-/// The two words from the previous round with the target sitting between them.
-/// This is the whole instruction for the round, so it gets the most space.
+/// The two words with giant tilted stickers and the organic bead chain bridge,
+/// exactly matching reference Screenshot 2 (e.g. OCEAN & DESERT with dotted bridge).
 class AnchorPair extends StatelessWidget {
   const AnchorPair({
     super.key,
@@ -19,99 +20,67 @@ class AnchorPair extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
-      decoration: BoxDecoration(
-        color: AppTheme.inkCard,
-        borderRadius: BorderRadius.circular(20),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: _Word(
-                  word: leftWord,
-                  color: AppTheme.colorForSlot(leftIsPlayerOne),
-                  align: TextAlign.left,
+          // Scale the whole row down on narrow phones instead of letting
+          // the cards overflow or squeeze, so the proportions stay exactly
+          // as designed at any screen width.
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+              // Left Word Sticker (Lime, tilted -10deg as in the reference)
+              Transform.translate(
+                offset: const Offset(0, -8),
+                child: WordSticker(
+                  word: titleCaseWord(leftWord),
+                  tone: WordTone.lime,
+                  rotate: -10,
+                  isLarge: true,
                 ),
               ),
-              const _Midpoint(),
-              Expanded(
-                child: _Word(
-                  word: rightWord,
-                  color: AppTheme.colorForSlot(!leftIsPlayerOne),
-                  align: TextAlign.right,
+
+              // Dotted Bead Chain Bridge, raised so the bead cluster sits
+              // in the upper gap between the cards like the reference: the
+              // first bead is level with the lime card's top edge and the
+              // last bead lands at the coral card's middle.
+              Transform.translate(
+                offset: const Offset(0, -18),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 2),
+                  child: DottedChainBridge(),
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          Text(
-            'now both aim for something in between',
-            style: TextStyle(
-              fontSize: 11.5,
-              letterSpacing: 1.4,
-              color: AppTheme.parchment.withValues(alpha: 0.62),
+
+              // Right Word Sticker (Coral, tilted 10deg, centre 23 below
+              // the lime card's centre as in the reference)
+              Transform.translate(
+                offset: const Offset(0, 15),
+                child: WordSticker(
+                  word: titleCaseWord(rightWord),
+                  tone: WordTone.coral,
+                  rotate: 10,
+                  isLarge: true,
+                ),
+              ),
+              ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
 
-class _Word extends StatelessWidget {
-  const _Word({required this.word, required this.color, required this.align});
+          const SizedBox(height: 28),
 
-  final String word;
-  final Color color;
-  final TextAlign align;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      titleCaseWord(word),
-      textAlign: align,
-      maxLines: 2,
-      overflow: TextOverflow.ellipsis,
-      style: TextStyle(
-        fontSize: 22,
-        fontWeight: FontWeight.w600,
-        height: 1.2,
-        color: color,
-      ),
-    );
-  }
-}
-
-class _Midpoint extends StatelessWidget {
-  const _Midpoint();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 34,
-            height: 1,
-            color: AppTheme.parchment.withValues(alpha: 0.18),
-          ),
-          const SizedBox(height: 6),
-          Icon(
-            Icons.adjust_rounded,
-            size: 16,
-            color: AppTheme.parchment.withValues(alpha: 0.55),
-          ),
-          const SizedBox(height: 6),
-          Container(
-            width: 34,
-            height: 1,
-            color: AppTheme.parchment.withValues(alpha: 0.18),
+          Text(
+            'Find the word between them',
+            style: GoogleFonts.outfit(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.mist,
+            ),
           ),
         ],
       ),

@@ -26,6 +26,9 @@ class MockBackend implements GameBackend {
   String get displayName => 'Player';
 
   @override
+  String get avatarId => 'avatar_1';
+
+  @override
   bool get isNetworked => true;
 
   @override
@@ -41,6 +44,9 @@ class MockBackend implements GameBackend {
 
   @override
   Future<void> setDisplayName(String name) async {}
+
+  @override
+  Future<void> setAvatarId(String? id) async {}
 
   @override
   Future<Room> createRoom({
@@ -63,6 +69,14 @@ class MockBackend implements GameBackend {
 
   @override
   Stream<Room> watchRoom(String code) => roomController.stream;
+
+  @override
+  Stream<List<Room>> watchMyRooms() => const Stream.empty();
+
+  @override
+  Future<void> addPracticePartner(String code) async {
+    throw UnimplementedError();
+  }
 
   @override
   Future<void> submitWord({required String code, required int roundIndex, required String word}) async {}

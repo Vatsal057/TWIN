@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
+import '../../core/word_utils.dart';
 import '../../models/game_round.dart';
 import '../app_theme.dart';
 
-/// Round-by-round record: the two words, and whether they met.
-/// Newest first, because that is the row people actually look at.
+/// Round history card container matching reference Screenshot 2:
+/// - Rounded card with subtle border and dividers
+/// - Each row: "Round X" on the left, pill for Word 1, "/" separator, pill for Word 2
 class RoundHistory extends StatelessWidget {
   const RoundHistory({
     super.key,
@@ -20,98 +23,113 @@ class RoundHistory extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (rounds.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 18),
-        child: Text(
-          'No rounds yet.',
-          style: TextStyle(
-            fontSize: 13,
-            color: AppTheme.parchment.withValues(alpha: 0.6),
-          ),
-        ),
-      );
+      return const SizedBox.shrink();
     }
 
-    return Column(
-      children: [
-        for (final round in rounds.reversed)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: RoundHistoryTile(round: round),
-          ),
-      ],
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: Column(
+          children: [
+            for (int i = 0; i < rounds.length; i++) ...[
+              if (i > 0)
+                Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: Colors.white.withValues(alpha: 0.07),
+                ),
+              _RoundRow(round: rounds[i]),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }
 
-class RoundHistoryTile extends StatelessWidget {
-  const RoundHistoryTile({super.key, required this.round});
+class _RoundRow extends StatelessWidget {
+  const _RoundRow({required this.round});
 
   final GameRound round;
 
   @override
   Widget build(BuildContext context) {
     final matched = round.matched;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-      decoration: BoxDecoration(
-        color: matched
-            ? AppTheme.converged.withValues(alpha: 0.12)
-            : AppTheme.inkRaised,
-        borderRadius: BorderRadius.circular(14),
-        border: matched
-            ? Border.all(color: AppTheme.converged.withValues(alpha: 0.45))
-            : null,
-      ),
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
+          // Round label (e.g. Round 1)
           SizedBox(
-            width: 22,
+            width: 72,
             child: Text(
-              '${round.index}',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: AppTheme.parchment.withValues(alpha: 0.6),
+              'Round ${round.index}',
+              style: GoogleFonts.outfit(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.mist,
               ),
             ),
           ),
+          const SizedBox(width: 8),
+
+          // Word 1 Pill
           Expanded(
-            child: Text(
-              round.displayP1Word,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 14.5,
-                fontWeight: FontWeight.w500,
-                color: matched
-                    ? AppTheme.converged
-                    : AppTheme.playerOne.withValues(alpha: 0.95),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2E3060), // Dark Navy 700
+                borderRadius: BorderRadius.circular(20),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                titleCaseWord(round.p1Word).toUpperCase(),
+                style: GoogleFonts.outfit(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.5,
+                  color: matched ? AppTheme.lime : Colors.white,
+                ),
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            child: Icon(
-              matched ? Icons.check_circle : Icons.swap_horiz_rounded,
-              size: 15,
-              color: matched
-                  ? AppTheme.converged
-                  : AppTheme.parchment.withValues(alpha: 0.35),
+
+          // Slash separator
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 8),
+            child: Text(
+              '/',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.mist,
+              ),
             ),
           ),
+
+          // Word 2 Pill
           Expanded(
-            child: Text(
-              round.displayP2Word,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.right,
-              style: TextStyle(
-                fontSize: 14.5,
-                fontWeight: FontWeight.w500,
-                color: matched
-                    ? AppTheme.converged
-                    : AppTheme.playerTwo.withValues(alpha: 0.95),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2E3060), // Dark Navy 700
+                borderRadius: BorderRadius.circular(20),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                titleCaseWord(round.p2Word).toUpperCase(),
+                style: GoogleFonts.outfit(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.5,
+                  color: matched ? AppTheme.lime : Colors.white,
+                ),
               ),
             ),
           ),

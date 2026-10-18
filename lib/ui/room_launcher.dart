@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../core/game_config.dart';
 import '../models/room.dart';
 import '../services/backend/game_backend.dart';
 import '../services/room_code.dart';
+import '../services/stats_service.dart';
 import '../state/app_session.dart';
 import 'app_theme.dart';
 import 'room_page.dart';
@@ -57,7 +59,7 @@ class RoomLauncher {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppTheme.inkRaised,
+      backgroundColor: AppTheme.navy900,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -73,20 +75,20 @@ class RoomLauncher {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
+              Text(
                 'Join TWIN Challenge',
-                style: TextStyle(
+                style: GoogleFonts.outfit(
                   fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: AppTheme.parchment,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
                 ),
               ),
               const SizedBox(height: 6),
               Text(
                 'What should your friend call you?',
-                style: TextStyle(
+                style: GoogleFonts.outfit(
                   fontSize: 13.5,
-                  color: AppTheme.parchment.withValues(alpha: 0.7),
+                  color: AppTheme.mist,
                 ),
               ),
               const SizedBox(height: 18),
@@ -95,6 +97,7 @@ class RoomLauncher {
                 autofocus: true,
                 textCapitalization: TextCapitalization.words,
                 maxLength: 24,
+                style: GoogleFonts.outfit(color: Colors.white),
                 decoration: const InputDecoration(
                   hintText: 'Your name',
                   counterText: '',
@@ -114,12 +117,28 @@ class RoomLauncher {
                   Expanded(
                     child: TextButton(
                       onPressed: () => Navigator.of(sheetContext).pop(),
-                      child: const Text('Play as Guest'),
+                      child: Text(
+                        'Play as Guest',
+                        style: GoogleFonts.outfit(
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.mist,
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppTheme.lime,
+                        foregroundColor: AppTheme.navy950,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        textStyle: GoogleFonts.outfit(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
                       onPressed: () {
                         final trimmed = controller.text.trim();
                         if (trimmed.isNotEmpty) {
@@ -152,10 +171,11 @@ class RoomLauncher {
     );
   }
 
-  static void open(BuildContext context, String code) {
-    Navigator.of(
+  static Future<void> open(BuildContext context, String code) async {
+    await Navigator.of(
       context,
     ).push(MaterialPageRoute(builder: (_) => RoomPage(roomCode: code)));
+    StatsService.instance.reload();
   }
 
   static Future<void> _run(
@@ -192,9 +212,10 @@ class RoomLauncher {
     try {
       final room = await action();
       closeBarrier();
-      navigator.push(
+      await navigator.push(
         MaterialPageRoute(builder: (_) => RoomPage(roomCode: room.code)),
       );
+      StatsService.instance.reload();
     } catch (error) {
       closeBarrier();
       // Show what actually went wrong. A bare "could not create a room" hides

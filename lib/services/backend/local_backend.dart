@@ -2,15 +2,19 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/app_avatars.dart';
 import '../../core/game_config.dart';
 import '../../core/word_utils.dart';
 import '../../models/chat_message.dart';
 import '../../models/friend.dart';
 import '../../models/game_invite.dart';
+import '../../models/game_round.dart';
 import '../../models/room.dart';
 import '../room_code.dart';
+import '../stats_service.dart';
 import 'game_backend.dart';
 
 /// Single-device backend used when Firebase is not configured.
@@ -21,7 +25,9 @@ import 'game_backend.dart';
 /// playable and inspectable without any cloud setup. It does **not** sync
 /// across devices; real two-player games need the Firestore backend.
 class LocalBackend implements GameBackend {
-  LocalBackend({String displayName = 'You'}) : _displayName = displayName;
+  LocalBackend({String displayName = 'You', String avatarId = AppAvatars.fallback})
+    : _displayName = displayName,
+      _avatarId = avatarId;
 
   static const botId = 'local-bot';
   static const botName = 'Practice Bot';
@@ -44,10 +50,13 @@ class LocalBackend implements GameBackend {
   final _random = Random();
 
   String _displayName;
+  String _avatarId;
   String _uid = 'local-player';
 
   final Map<String, Room> _rooms = {};
   final Map<String, StreamController<Room>> _roomStreams = {};
+  final StreamController<List<Room>> _myRoomsStream =
+      StreamController<List<Room>>.broadcast();
   final Map<String, Map<int, Map<String, String>>> _submissions = {};
   final Map<String, List<ChatMessage>> _messages = {};
   final Map<String, StreamController<List<ChatMessage>>> _messageStreams = {};
@@ -71,10 +80,15 @@ class LocalBackend implements GameBackend {
   String get displayName => _displayName;
 
   @override
+  String get avatarId => _avatarId;
+
+  @override
   Future<void> initialize() async {
     _prefs = await SharedPreferences.getInstance();
-    _uid =
-        _prefs?.getString('local_uid') ?? 'local-${_random.nextInt(1 << 32)}';
+    // Keep the id comfortably inside nextInt's range on every platform
+    // (web compiles ints to JS doubles, where `1 << 32` overflows to 0).
+    _uid = _prefs?.getString('local_uid') ??
+        'local-${_random.nextInt(0x7FFFFFFF).toRadixString(36)}';
     await _prefs?.setString('local_uid', _uid);
 
     final raw = _prefs?.getString('local_friends');
@@ -89,8 +103,74 @@ class LocalBackend implements GameBackend {
         }
       }
     }
+    final rawRooms = _prefs?.getString('local_rooms');
+    if (rawRooms != null) {
+      try {
+        final decoded = jsonDecode(rawRooms);
+        if (decoded is List) {
+          for (final item in decoded.whereType<Map>()) {
+            final map = item.cast<String, Object?>();
+            final code = map['code'] as String?;
+            if (code != null && code.isNotEmpty) {
+              _rooms[code] = Room.fromMap(code, map);
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('Error restoring local rooms: $e');
+      }
+    }
+    if (_rooms.isEmpty) {
+      _seedDemoState();
+    }
+    await _seedDemoStats();
     _emitFriends();
+    _emitMyRooms();
   }
+
+  /// The seeded finished games (T2WQN, H5JRD) belong in the lifetime stats
+  /// too, otherwise History shows past games with an empty stats card.
+  Future<void> _seedDemoStats() async {
+    final stats = StatsService.instance;
+    final snapshot = await stats.getStats();
+    if (snapshot.totalGamesPlayed > 0) return;
+    await stats.recordGameResult(converged: false, rounds: 5);
+    await stats.recordGameResult(converged: true, rounds: 3, twinnedWord: 'dusk');
+    await stats.recordGameResult(converged: true, rounds: 5, twinnedWord: 'brunch');
+  }
+
+  List<Room> _mineRoomsList() {
+    final mine = _rooms.values
+        .where((r) => r.players.contains(_uid))
+        .toList()
+      ..sort((a, b) {
+        final aAt = a.updatedAt ?? a.createdAt ?? DateTime(0);
+        final bAt = b.updatedAt ?? b.createdAt ?? DateTime(0);
+        return bAt.compareTo(aAt);
+      });
+    return List.unmodifiable(mine);
+  }
+
+  @override
+  Stream<List<Room>> watchMyRooms() async* {
+    yield _mineRoomsList();
+    yield* _myRoomsStream.stream;
+  }
+
+  void _emitMyRooms() {
+    if (_myRoomsStream.isClosed) return;
+    _myRoomsStream.add(_mineRoomsList());
+  }
+
+  Future<void> _persistRooms() async {
+    try {
+      final list = _rooms.values.map((r) => r.toMap()).toList();
+      await _prefs?.setString('local_rooms', jsonEncode(list));
+    } catch (e) {
+      debugPrint('Error persisting local rooms: $e');
+    }
+  }
+
 
   @override
   Future<void> setDisplayName(String name) async {
@@ -101,6 +181,18 @@ class LocalBackend implements GameBackend {
       final room = _rooms[code]!;
       _publish(
         room.copyWith(playerNames: {...room.playerNames, _uid: trimmed}),
+      );
+    }
+  }
+
+  @override
+  Future<void> setAvatarId(String avatarId) async {
+    if (!AppAvatars.isValid(avatarId)) return;
+    _avatarId = avatarId;
+    for (final code in _rooms.keys.toList()) {
+      final room = _rooms[code]!;
+      _publish(
+        room.copyWith(playerAvatars: {...room.playerAvatars, _uid: avatarId}),
       );
     }
   }
@@ -121,6 +213,7 @@ class LocalBackend implements GameBackend {
       hostId: _uid,
       players: [_uid],
       playerNames: {_uid: _displayName},
+      playerAvatars: {_uid: _avatarId},
       status: RoomStatus.waiting,
       config: config,
       currentRound: 1,
@@ -132,6 +225,8 @@ class LocalBackend implements GameBackend {
     _rooms[code] = room;
     _submissions[code] = {};
     _messages[code] = [];
+    _emitMyRooms();
+    _persistRooms();
 
     // Stand in for the second player joining from another device.
     _schedule(const Duration(milliseconds: 1200), () => _botJoin(code));
@@ -164,6 +259,7 @@ class LocalBackend implements GameBackend {
     final joined = existing.copyWith(
       players: [...existing.players, _uid],
       playerNames: {...existing.playerNames, _uid: _displayName},
+      playerAvatars: {...existing.playerAvatars, _uid: _avatarId},
       status: RoomStatus.active,
     );
     _publish(joined);
@@ -198,12 +294,16 @@ class LocalBackend implements GameBackend {
     (_submissions[code] ??= {}).putIfAbsent(roundIndex, () => {})[_uid] = word;
     _publish(room.copyWith(submittedBy: {...room.submittedBy, _uid}.toList()));
 
-    // The bot answers after a beat so the "waiting for opponent" state is real.
-    _schedule(
-      Duration(milliseconds: 700 + _random.nextInt(900)),
-      () => _botSubmit(code, roundIndex),
-    );
+    // The partner answers after a beat so the "waiting for opponent" state is real.
+    final opponentId = room.players.firstWhere((p) => p != _uid, orElse: () => '');
+    if (opponentId.isNotEmpty) {
+      _schedule(
+        Duration(milliseconds: 700 + _random.nextInt(900)),
+        () => _botSubmitPlayer(code, roundIndex, opponentId),
+      );
+    }
   }
+
 
   @override
   Future<({String p1Word, String p2Word})?> readSubmissions({
@@ -240,6 +340,7 @@ class LocalBackend implements GameBackend {
         currentRound: resolution.nextRound,
         submittedBy: const [],
         finishReason: resolution.finishReason,
+        updatedAt: DateTime.now(),
       ),
     );
   }
@@ -252,6 +353,7 @@ class LocalBackend implements GameBackend {
       room.copyWith(
         status: RoomStatus.finished,
         finishReason: FinishReason.abandoned,
+        updatedAt: DateTime.now(),
       ),
     );
   }
@@ -288,7 +390,17 @@ class LocalBackend implements GameBackend {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;
     _appendMessage(code, senderId: _uid, text: trimmed);
+
+    final room = _rooms[code];
+    final opponentId = room?.players.firstWhere((p) => p != _uid, orElse: () => '');
+    if (opponentId != null && opponentId.isNotEmpty) {
+      _schedule(
+        Duration(milliseconds: 1000 + _random.nextInt(800)),
+        () => _appendMessage(code, senderId: opponentId, text: _botChatReply(trimmed)),
+      );
+    }
   }
+
 
   void _appendMessage(
     String code, {
@@ -309,10 +421,20 @@ class LocalBackend implements GameBackend {
 
   // -------------------------------------------------------------- friends
 
+  List<Friend> _friendsList() {
+    final list = _friends.values.toList()
+      ..sort(
+        (a, b) => (b.lastPlayedAt ?? DateTime(0)).compareTo(
+          a.lastPlayedAt ?? DateTime(0),
+        ),
+      );
+    return List.unmodifiable(list);
+  }
+
   @override
-  Stream<List<Friend>> watchFriends() {
-    _schedule(Duration.zero, _emitFriends);
-    return _friendStream.stream;
+  Stream<List<Friend>> watchFriends() async* {
+    yield _friendsList();
+    yield* _friendStream.stream;
   }
 
   @override
@@ -428,6 +550,10 @@ class LocalBackend implements GameBackend {
       room.copyWith(
         players: [...room.players, botId],
         playerNames: {...room.playerNames, botId: botName},
+        playerAvatars: {
+          ...room.playerAvatars,
+          botId: AppAvatars.forName(botName),
+        },
         status: RoomStatus.active,
       ),
     );
@@ -437,17 +563,423 @@ class LocalBackend implements GameBackend {
     );
   }
 
-  void _botSubmit(String code, int roundIndex) {
+
+  void _botSubmitPlayer(String code, int roundIndex, String botPlayerId) {
     final room = _rooms[code];
     if (room == null || room.status == RoomStatus.finished) return;
     if (room.currentRound != roundIndex) return;
-    if (room.hasSubmitted(botId)) return;
-    if (!room.players.contains(botId)) return;
+    if (room.hasSubmitted(botPlayerId)) return;
+    if (!room.players.contains(botPlayerId)) return;
 
     final word = _botWord(room, humanId: _uid);
-    (_submissions[code] ??= {}).putIfAbsent(roundIndex, () => {})[botId] = word;
-    _publish(room.copyWith(submittedBy: {...room.submittedBy, botId}.toList()));
+    (_submissions[code] ??= {}).putIfAbsent(roundIndex, () => {})[botPlayerId] = word;
+    _publish(room.copyWith(submittedBy: {...room.submittedBy, botPlayerId}.toList()));
   }
+
+  String _botChatReply(String userText) {
+    final text = userText.toLowerCase();
+    if (text.contains('hint')) return 'hint: think where those two overlap 🌉';
+    if (text.contains('twin')) return 'twin!! 🎉';
+    if (text.endsWith('?')) {
+      final q = ['hmm good question 🤔', 'no idea, you?', 'maybe... 🤫'];
+      return q[_random.nextInt(q.length)];
+    }
+    const banter = [
+      "haha same, don't tell me!",
+      "we're so close",
+      'ok I think I see where you are going',
+      '😂😂',
+      'this one is tricky',
+      'I had something completely different lol',
+      'say more, I need a hint 👀',
+    ];
+    return banter[_random.nextInt(banter.length)];
+  }
+
+  void _seedDemoState() {
+    const ivy = 'partner-ivy';
+    const leo = 'partner-leo';
+    const zoe = 'partner-zoe';
+    const maya = 'partner-maya';
+    const sam = 'partner-sam';
+
+    _friends.putIfAbsent(
+      ivy,
+      () => Friend(
+        id: ivy,
+        name: 'Ivy',
+        lastPlayedAt: DateTime.now().subtract(const Duration(minutes: 5)),
+        gamesPlayed: 1,
+        totalRounds: 1,
+        bestSyncRounds: null,
+        bestSyncWord: null,
+        memoryBank: const [],
+      ),
+    );
+    _friends.putIfAbsent(
+      leo,
+      () => Friend(
+        id: leo,
+        name: 'Leo',
+        lastPlayedAt: DateTime.now().subtract(const Duration(minutes: 8)),
+        gamesPlayed: 4,
+        totalRounds: 14,
+        bestSyncRounds: 3,
+        bestSyncWord: 'bridge',
+        memoryBank: const ['bridge'],
+      ),
+    );
+    _friends.putIfAbsent(
+      zoe,
+      () => Friend(
+        id: zoe,
+        name: 'Zoe',
+        lastPlayedAt: DateTime.now().subtract(const Duration(minutes: 18)),
+        gamesPlayed: 2,
+        totalRounds: 6,
+        bestSyncRounds: 4,
+        bestSyncWord: 'oasis',
+        memoryBank: const ['oasis'],
+      ),
+    );
+    _friends.putIfAbsent(
+      maya,
+      () => Friend(
+        id: maya,
+        name: 'Maya',
+        lastPlayedAt: DateTime.now().subtract(const Duration(minutes: 28)),
+        gamesPlayed: 3,
+        totalRounds: 10,
+        bestSyncRounds: 3,
+        bestSyncWord: 'dusk',
+        memoryBank: const ['dusk'],
+      ),
+    );
+
+    // ROOM 1: Leo — Round 4, active ("Your turn", Leo locked in)
+    // Rounds: Round 1 (HI / MIDNIGHT), Round 2 (BRIDGE / HOME), Round 3 (WATER / BRIDGE)
+    // Active stickers: WATER (Lime) & BRIDGE (Coral)
+    final rLeo4 = Room(
+      code: 'LEO04',
+      hostId: _uid,
+      players: [_uid, leo],
+      playerNames: {_uid: _displayName, leo: 'Leo'},
+      playerAvatars: {_uid: _avatarId, leo: AppAvatars.forName('Leo')},
+      status: RoomStatus.active,
+      config: const GameConfig(),
+      currentRound: 4,
+      submittedBy: [leo],
+      rounds: [
+        GameRound(
+          index: 1,
+          p1Word: 'hi',
+          p2Word: 'midnight',
+          matched: false,
+          revealedAt: DateTime.now().subtract(const Duration(minutes: 40)),
+        ),
+        GameRound(
+          index: 2,
+          p1Word: 'bridge',
+          p2Word: 'home',
+          matched: false,
+          revealedAt: DateTime.now().subtract(const Duration(minutes: 25)),
+        ),
+        GameRound(
+          index: 3,
+          p1Word: 'water',
+          p2Word: 'bridge',
+          matched: false,
+          revealedAt: DateTime.now().subtract(const Duration(minutes: 10)),
+        ),
+      ],
+      createdAt: DateTime.now().subtract(const Duration(minutes: 50)),
+      updatedAt: DateTime.now().subtract(const Duration(minutes: 10)),
+    );
+    _rooms['LEO04'] = rLeo4;
+    _submissions['LEO04'] = {
+      1: {_uid: 'hi', leo: 'midnight'},
+      2: {_uid: 'bridge', leo: 'home'},
+      3: {_uid: 'water', leo: 'bridge'},
+      4: {leo: 'island'},
+    };
+    _messages['LEO04'] = [
+      ChatMessage(
+        id: 'sys-leo-1',
+        senderId: 'system',
+        text: 'hint: think where those two overlap 🌉',
+        sentAt: DateTime.now().subtract(const Duration(minutes: 11)),
+      ),
+      ChatMessage(
+        id: 'sys-leo-2',
+        senderId: 'system',
+        text: 'Round 2: BRIDGE vs HOME — no match',
+        sentAt: DateTime.now().subtract(const Duration(minutes: 10)),
+        system: true,
+        round: 2,
+        wordA: 'bridge',
+        wordB: 'home',
+        matched: false,
+      ),
+      ChatMessage(
+        id: 'msg-leo-1',
+        senderId: leo,
+        text: 'different this time for sure',
+        sentAt: DateTime.now().subtract(const Duration(minutes: 9)),
+      ),
+      ChatMessage(
+        id: 'sys-leo-3',
+        senderId: 'system',
+        text: 'Round 3: WATER vs BRIDGE — no match',
+        sentAt: DateTime.now().subtract(const Duration(minutes: 8)),
+        system: true,
+        round: 3,
+        wordA: 'water',
+        wordB: 'bridge',
+        matched: false,
+      ),
+      ChatMessage(
+        id: 'msg-leo-2',
+        senderId: leo,
+        text: 'no match 😅 let us go again',
+        sentAt: DateTime.now().subtract(const Duration(minutes: 7)),
+      ),
+      ChatMessage(
+        id: 'msg-leo-3',
+        senderId: _uid,
+        text: 'Hint?',
+        sentAt: DateTime.now().subtract(const Duration(minutes: 6)),
+      ),
+      ChatMessage(
+        id: 'msg-leo-4',
+        senderId: leo,
+        text: 'hint: think where those two overlap\n🌉',
+        sentAt: DateTime.now().subtract(const Duration(minutes: 5)),
+      ),
+    ];
+
+    // ROOM 2: Zoe — Round 3, active ("Your turn", unread badge: 1)
+    final rZoe3 = Room(
+      code: 'ZOE03',
+      hostId: _uid,
+      players: [_uid, zoe],
+      playerNames: {_uid: _displayName, zoe: 'Zoe'},
+      playerAvatars: {_uid: _avatarId, zoe: AppAvatars.forName('Zoe')},
+      status: RoomStatus.active,
+      config: const GameConfig(),
+      currentRound: 3,
+      submittedBy: const [],
+      rounds: [
+        GameRound(
+          index: 1,
+          p1Word: 'sun',
+          p2Word: 'moon',
+          matched: false,
+          revealedAt: DateTime.now().subtract(const Duration(minutes: 30)),
+        ),
+        GameRound(
+          index: 2,
+          p1Word: 'ocean',
+          p2Word: 'desert',
+          matched: false,
+          revealedAt: DateTime.now().subtract(const Duration(minutes: 18)),
+        ),
+      ],
+      createdAt: DateTime.now().subtract(const Duration(minutes: 35)),
+      updatedAt: DateTime.now().subtract(const Duration(minutes: 18)),
+    );
+    _rooms['ZOE03'] = rZoe3;
+    _submissions['ZOE03'] = {
+      1: {_uid: 'sun', zoe: 'moon'},
+      2: {_uid: 'ocean', zoe: 'desert'},
+    };
+    _messages['ZOE03'] = [
+      ChatMessage(
+        id: 'msg-zoe-1',
+        senderId: zoe,
+        text: "oasis would be great for round 3!",
+        sentAt: DateTime.now().subtract(const Duration(minutes: 17)),
+      ),
+    ];
+
+    // ROOM 3: Maya — Round 2, active ("Your turn")
+    final rMaya2 = Room(
+      code: 'MAY02',
+      hostId: _uid,
+      players: [_uid, maya],
+      playerNames: {_uid: _displayName, maya: 'Maya'},
+      playerAvatars: {_uid: _avatarId, maya: AppAvatars.forName('Maya')},
+      status: RoomStatus.active,
+      config: const GameConfig(),
+      currentRound: 2,
+      submittedBy: const [],
+      rounds: [
+        GameRound(
+          index: 1,
+          p1Word: 'coffee',
+          p2Word: 'tea',
+          matched: false,
+          revealedAt: DateTime.now().subtract(const Duration(minutes: 28)),
+        ),
+      ],
+      createdAt: DateTime.now().subtract(const Duration(minutes: 32)),
+      updatedAt: DateTime.now().subtract(const Duration(minutes: 28)),
+    );
+    _rooms['MAY02'] = rMaya2;
+    _submissions['MAY02'] = {
+      1: {_uid: 'coffee', maya: 'tea'},
+    };
+    _messages['MAY02'] = [
+      ChatMessage(
+        id: 'sys-may-1',
+        senderId: 'system',
+        text: 'Round 1: COFFEE vs TEA — no match',
+        sentAt: DateTime.now().subtract(const Duration(minutes: 28)),
+        system: true,
+        round: 1,
+        wordA: 'coffee',
+        wordB: 'tea',
+        matched: false,
+      ),
+    ];
+
+    // ROOM 4: Leo — Round 3, active ("Your turn", unread badge: 1)
+    final rLeo3 = Room(
+      code: 'LEO03',
+      hostId: _uid,
+      players: [_uid, leo],
+      playerNames: {_uid: _displayName, leo: 'Leo'},
+      playerAvatars: {_uid: _avatarId, leo: AppAvatars.forName('Leo')},
+      status: RoomStatus.active,
+      config: const GameConfig(),
+      currentRound: 3,
+      submittedBy: const [],
+      rounds: [
+        GameRound(
+          index: 1,
+          p1Word: 'fire',
+          p2Word: 'water',
+          matched: false,
+          revealedAt: DateTime.now().subtract(const Duration(minutes: 50)),
+        ),
+        GameRound(
+          index: 2,
+          p1Word: 'steam',
+          p2Word: 'cloud',
+          matched: false,
+          revealedAt: DateTime.now().subtract(const Duration(minutes: 20)),
+        ),
+      ],
+      createdAt: DateTime.now().subtract(const Duration(minutes: 60)),
+      updatedAt: DateTime.now().subtract(const Duration(minutes: 20)),
+    );
+    _rooms['LEO03'] = rLeo3;
+    _submissions['LEO03'] = {
+      1: {_uid: 'fire', leo: 'water'},
+      2: {_uid: 'steam', leo: 'cloud'},
+    };
+    _messages['LEO03'] = [
+      ChatMessage(
+        id: 'msg-leo-3b',
+        senderId: leo,
+        text: 'think rain!',
+        sentAt: DateTime.now().subtract(const Duration(minutes: 19)),
+      ),
+    ];
+
+    // ROOM 5: Ivy — Round 1 ("Your turn", Ivy locked in) matching Screenshot 2026-10-14 at 19.09.10
+    final rIvy1 = Room(
+      code: 'IVY01',
+      hostId: _uid,
+      players: [_uid, ivy],
+      playerNames: {_uid: _displayName, ivy: 'Ivy'},
+      playerAvatars: {_uid: _avatarId, ivy: AppAvatars.forName('Ivy')},
+      status: RoomStatus.active,
+      config: const GameConfig(),
+      currentRound: 1,
+      submittedBy: [ivy],
+      rounds: const [],
+      createdAt: DateTime.now().subtract(const Duration(minutes: 5)),
+      updatedAt: DateTime.now().subtract(const Duration(minutes: 5)),
+    );
+    _rooms['IVY01'] = rIvy1;
+    _submissions['IVY01'] = {
+      1: {ivy: 'apple'},
+    };
+    _messages['IVY01'] = [
+      ChatMessage(
+        id: 'msg-ivy-1',
+        senderId: ivy,
+        text: 'hey! let us match words!',
+        sentAt: DateTime.now().subtract(const Duration(minutes: 4)),
+      ),
+    ];
+
+    // Finished game records for History
+    _rooms['T2WQN'] = Room(
+      code: 'T2WQN',
+      hostId: _uid,
+      players: [_uid, maya],
+      playerNames: {_uid: _displayName, maya: 'Maya'},
+      playerAvatars: {_uid: _avatarId, maya: AppAvatars.forName('Maya')},
+      status: RoomStatus.finished,
+      finishReason: FinishReason.converged,
+      config: const GameConfig(),
+      currentRound: 3,
+      submittedBy: const [],
+      rounds: const [
+        GameRound(index: 1, p1Word: 'night', p2Word: 'day', matched: false),
+        GameRound(index: 2, p1Word: 'dark', p2Word: 'light', matched: false),
+        GameRound(index: 3, p1Word: 'dusk', p2Word: 'dusk', matched: true),
+      ],
+      createdAt: DateTime.now().subtract(const Duration(hours: 10)),
+      updatedAt: DateTime.now().subtract(const Duration(hours: 9)),
+    );
+
+    _rooms['H5JRD'] = Room(
+      code: 'H5JRD',
+      hostId: _uid,
+      players: [_uid, leo],
+      playerNames: {_uid: _displayName, leo: 'Leo'},
+      playerAvatars: {_uid: _avatarId, leo: AppAvatars.forName('Leo')},
+      status: RoomStatus.finished,
+      finishReason: FinishReason.converged,
+      config: const GameConfig(),
+      currentRound: 5,
+      submittedBy: const [],
+      rounds: const [
+        GameRound(index: 1, p1Word: 'bread', p2Word: 'butter', matched: false),
+        GameRound(index: 2, p1Word: 'toast', p2Word: 'jam', matched: false),
+        GameRound(index: 3, p1Word: 'morning', p2Word: 'breakfast', matched: false),
+        GameRound(index: 4, p1Word: 'kitchen', p2Word: 'cafe', matched: false),
+        GameRound(index: 5, p1Word: 'brunch', p2Word: 'brunch', matched: true),
+      ],
+      createdAt: DateTime.now().subtract(const Duration(hours: 33)),
+      updatedAt: DateTime.now().subtract(const Duration(hours: 32)),
+    );
+
+    _rooms['D9CKL'] = Room(
+      code: 'D9CKL',
+      hostId: _uid,
+      players: [_uid, sam],
+      playerNames: {_uid: _displayName, sam: 'Sam'},
+      playerAvatars: {_uid: _avatarId, sam: AppAvatars.forName('Sam')},
+      status: RoomStatus.finished,
+      finishReason: FinishReason.maxRounds,
+      config: const GameConfig(maxRounds: 5),
+      currentRound: 5,
+      submittedBy: const [],
+      rounds: const [
+        GameRound(index: 1, p1Word: 'entropy', p2Word: 'silence', matched: false),
+        GameRound(index: 2, p1Word: 'gravity', p2Word: 'nostalgia', matched: false),
+        GameRound(index: 3, p1Word: 'memory', p2Word: 'infinity', matched: false),
+        GameRound(index: 4, p1Word: 'chaos', p2Word: 'geometry', matched: false),
+        GameRound(index: 5, p1Word: 'solitude', p2Word: 'echo', matched: false),
+      ],
+      createdAt: DateTime.now().subtract(const Duration(hours: 50)),
+      updatedAt: DateTime.now().subtract(const Duration(hours: 49)),
+    );
+  }
+
 
   /// A plausible partner, not a clever one.
   ///
@@ -487,6 +1019,18 @@ class LocalBackend implements GameBackend {
   void _publish(Room room) {
     _rooms[room.code] = room;
     _roomStreams[room.code]?.add(room);
+    _emitMyRooms();
+    _persistRooms();
+  }
+
+  @override
+  Future<void> addPracticePartner(String code) async {
+    final room = _rooms[code];
+    if (room == null) {
+      throw const BackendException('That room no longer exists.');
+    }
+    if (room.isFull) return;
+    _botJoin(code);
   }
 
   void _schedule(Duration delay, void Function() action) {
@@ -511,5 +1055,6 @@ class LocalBackend implements GameBackend {
       c.close();
     }
     _friendStream.close();
+    _myRoomsStream.close();
   }
 }

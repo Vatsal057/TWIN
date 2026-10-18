@@ -11,13 +11,13 @@
 .svn/
 .swiftpm/
 migrate_working_dir/
-
+react_app
 # IntelliJ related
 *.iml
 *.ipr
 *.iws
 .idea/
-
+graphify-out
 # The .vscode folder contains launch configuration and tasks you configure in
 # VS Code which you may wish to be included in version control, so this line
 # is commented out by default.
@@ -82,3 +82,6 @@ ios/Flutter/Flutter.podspec
 #
 # If you fork this for your own Firebase project, replace both files by running
 # ./tools/setup_firebase.sh and flutterfire configure.
+Screenshot_20261014_100838_Samsung Browser.jpg
+Screenshot_20261014_100849_Samsung Browser.jpg
+Screenshot_20261014_100902_Samsung Browser.jpg

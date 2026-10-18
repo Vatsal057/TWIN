@@ -1,5 +1,5 @@
-/// A plain-text chat line scoped to a room. No read receipts, no typing
-/// indicators, no media, no reactions — just sender, text and time.
+/// A chat message scoped to a room. Supports regular player text as well as
+/// system round outcome announcements (matching reference Screenshot 3).
 class ChatMessage {
   const ChatMessage({
     required this.id,
@@ -7,6 +7,11 @@ class ChatMessage {
     required this.text,
     this.sentAt,
     this.pending = false,
+    this.system = false,
+    this.round,
+    this.wordA,
+    this.wordB,
+    this.matched,
   });
 
   final String id;
@@ -17,7 +22,23 @@ class ChatMessage {
   /// True while the write is still in flight (Firestore local echo).
   final bool pending;
 
-  Map<String, Object?> toMap() => {'senderId': senderId, 'text': text};
+  /// True for system event cards like "Round 2: OASIS vs CAMEL — no match"
+  final bool system;
+  final int? round;
+  final String? wordA;
+  final String? wordB;
+  final bool? matched;
+
+  Map<String, Object?> toMap() => {
+    'senderId': senderId,
+    'text': text,
+    'system': system,
+    if (round != null) 'round': round,
+    if (wordA != null) 'wordA': wordA,
+    if (wordB != null) 'wordB': wordB,
+    if (matched != null) 'matched': matched,
+    if (sentAt != null) 'sentAt': sentAt!.toIso8601String(),
+  };
 
   factory ChatMessage.fromMap(
     String id,
@@ -34,6 +55,12 @@ class ChatMessage {
         _ => null,
       },
       pending: pending,
+      system: map['system'] == true,
+      round: (map['round'] as num?)?.toInt(),
+      wordA: map['wordA'] as String?,
+      wordB: map['wordB'] as String?,
+      matched: map['matched'] as bool?,
     );
   }
 }
+

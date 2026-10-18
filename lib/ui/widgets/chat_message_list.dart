@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../models/chat_message.dart';
 import '../../state/chat_controller.dart';
 import '../app_theme.dart';
-import '../layout.dart';
 
-/// The message stream. Shared by the bottom sheet on phones and the docked side
-/// panel on wide screens, so the two layouts can never drift apart.
+const _quickReplies = ['🔥', '😂', 'Hint?', 'Your turn!'];
+
+/// Redesigned ChatMessageList matching reference Screenshot 3:
+/// - Rounded lime bubble for user messages
+/// - Dark navy card bubble for partner messages
+/// - Quick reaction chips bar at bottom
 class ChatMessageList extends StatelessWidget {
   const ChatMessageList({super.key, required this.chat});
 
@@ -22,9 +26,9 @@ class ChatMessageList extends StatelessWidget {
           child: Text(
             'Say something. Messages stay in this room.',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 13,
-              color: AppTheme.parchment.withValues(alpha: 0.6),
+            style: GoogleFonts.outfit(
+              fontSize: 14,
+              color: AppTheme.mist,
             ),
           ),
         ),
@@ -57,40 +61,44 @@ class _Bubble extends StatelessWidget {
     return Align(
       alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-        constraints: const BoxConstraints(maxWidth: 260),
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        constraints: const BoxConstraints(maxWidth: 270),
         decoration: BoxDecoration(
-          color: isMine
-              ? AppTheme.seed.withValues(alpha: 0.18)
-              : AppTheme.inkCard,
+          color: isMine ? AppTheme.lime : AppTheme.navy800,
           borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(14),
-            topRight: const Radius.circular(14),
-            bottomLeft: Radius.circular(isMine ? 14 : 4),
-            bottomRight: Radius.circular(isMine ? 4 : 14),
+            topLeft: const Radius.circular(20),
+            topRight: const Radius.circular(20),
+            bottomLeft: Radius.circular(isMine ? 20 : 4),
+            bottomRight: Radius.circular(isMine ? 4 : 20),
           ),
         ),
-        child: Text(
-          message.text,
-          style: TextStyle(
-            fontSize: 14,
-            height: 1.35,
-            color: AppTheme.parchment.withValues(
-              alpha: message.pending ? 0.55 : 0.92,
+        child: Column(
+          crossAxisAlignment:
+              isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              message.text,
+              style: GoogleFonts.outfit(
+                fontSize: 15,
+                fontWeight: isMine ? FontWeight.w800 : FontWeight.w600,
+                color: isMine ? AppTheme.navy950 : Colors.white,
+                height: 1.3,
+              ),
             ),
-          ),
+            if (isMine) ...[
+              const SizedBox(height: 3),
+              const Icon(Icons.done_all_rounded, size: 13, color: AppTheme.navy950),
+            ],
+          ],
         ),
       ),
     );
   }
 }
 
-/// Text field plus send button.
-///
-/// On desktop Enter sends and Shift+Enter is not needed, because messages here
-/// are one-liners. The field keeps focus after sending so a back-and-forth does
-/// not need a click between each message.
+/// Composer with quick reply pills and pill input
 class ChatComposer extends StatefulWidget {
   const ChatComposer({super.key, required this.chat});
 
@@ -111,56 +119,108 @@ class _ChatComposerState extends State<ChatComposer> {
     super.dispose();
   }
 
-  void _send() {
-    final text = _controller.text;
-    if (text.trim().isEmpty) return;
+  void _send(String raw) {
+    final text = raw.trim();
+    if (text.isEmpty) return;
     _controller.clear();
     widget.chat.send(text);
-    // Desktop users expect to keep typing; mobile users expect the keyboard to
-    // stay up too, so this is the same either way.
     _focus.requestFocus();
   }
 
   @override
   Widget build(BuildContext context) {
-    final compact = Layout.isCompact(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 8, 14, 10),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _controller,
-              focusNode: _focus,
-              textInputAction: TextInputAction.send,
-              maxLength: 500,
-              minLines: 1,
-              maxLines: 4,
-              onSubmitted: (_) => _send(),
-              style: const TextStyle(fontSize: 14),
-              decoration: InputDecoration(
-                hintText: compact ? 'Message' : 'Message, Enter to send',
-                counterText: '',
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Quick reaction chips row matching reference Screenshot 3
+        SizedBox(
+          height: 38,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            itemCount: _quickReplies.length,
+            separatorBuilder: (_, index) => const SizedBox(width: 8),
+            itemBuilder: (context, i) {
+              final chip = _quickReplies[i];
+              return InkWell(
+                onTap: () => _send(chip),
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    chip,
+                    style: GoogleFonts.outfit(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+
+        const SizedBox(height: 8),
+
+        // Rounded input capsule
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+          child: Row(
+            children: [
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(26),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: TextField(
+                    controller: _controller,
+                    focusNode: _focus,
+                    textInputAction: TextInputAction.send,
+                    maxLength: 500,
+                    minLines: 1,
+                    maxLines: 4,
+                    onSubmitted: (val) => _send(val),
+                    style: GoogleFonts.outfit(fontSize: 15, color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: 'Message…',
+                      hintStyle: GoogleFonts.outfit(color: AppTheme.mist, fontSize: 14),
+                      counterText: '',
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
                 ),
               ),
-            ),
+              const SizedBox(width: 8),
+              Container(
+                width: 44,
+                height: 44,
+                decoration: const BoxDecoration(
+                  color: AppTheme.lime,
+                  shape: BoxShape.circle,
+                ),
+                child: IconButton(
+                  onPressed: () => _send(_controller.text),
+                  tooltip: 'Send',
+                  icon: const Icon(Icons.send_rounded, size: 18, color: AppTheme.navy950),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
-          IconButton.filled(
-            onPressed: _send,
-            tooltip: 'Send',
-            style: IconButton.styleFrom(
-              backgroundColor: AppTheme.seed,
-              foregroundColor: AppTheme.ink,
-              minimumSize: const Size(46, 46),
-            ),
-            icon: const Icon(Icons.arrow_upward_rounded, size: 20),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

@@ -1,247 +1,691 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
-import '../core/game_config.dart';
-import '../models/friend.dart';
 import '../models/game_invite.dart';
-import '../services/daily_twin_service.dart';
-import '../services/room_code.dart';
+import '../services/stats_service.dart';
 import '../state/app_session.dart';
 import 'app_theme.dart';
-import 'layout.dart';
 import 'room_launcher.dart';
-import 'widgets/brand_mark.dart';
+import 'views/chat_list_view.dart';
+import 'views/history_view.dart';
+import 'widgets/character_avatar.dart';
 import 'widgets/create_room_sheet.dart';
-import 'widgets/duo_chemistry_sheet.dart';
+import 'widgets/floating_bottom_bar.dart';
+import 'widgets/join_sheet.dart';
 import 'widgets/lifetime_stats_sheet.dart';
-import 'widgets/section_label.dart';
+import 'widgets/reference_brand_mark.dart';
+import 'widgets/reference_icons.dart';
+import 'widgets/settings_sheet.dart';
 
-class HomeScreen extends StatelessWidget {
+const _taglines = [
+  'Different words\nbring you closer',
+  'Say the same thing',
+  'Two minds, one word',
+  'No points. Just magic.',
+  'Closer every round',
+];
+
+/// The footer chip pair shown with each tagline: the two chip
+/// words and their colours, rotating on the same index. The first
+/// pair is the reference artwork's IDEAS / PEOPLE in its sampled
+/// colours; the rest follow their taglines in the same style.
+const _chipPairs = [
+  ('IDEAS', 'PEOPLE', Color(0xFFCBF56E), Color(0xFFEC715D)),
+  ('YOURS', 'MINE', Color(0xFFFFC94D), Color(0xFF5EB1EF)),
+  ('MINDS', 'WORD', Color(0xFFB79CFF), Color(0xFF63E6BE)),
+  ('POINTS', 'MAGIC', Color(0xFFFFA26B), Color(0xFFE08FFF)),
+  ('FAR', 'NEAR', Color(0xFF62DFF5), Color(0xFFFF8FAB)),
+];
+
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  int _taglineIdx = 0;
+  MainTab _currentTab = MainTab.play;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.doWhile(() async {
+      await Future.delayed(const Duration(seconds: 4));
+      if (!mounted) return false;
+      setState(() => _taglineIdx = (_taglineIdx + 1) % _taglines.length);
+      return true;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final session = context.watch<AppSession>();
 
-    return Scaffold(
-      body: SafeArea(
-        child: PageShell(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(24, 28, 24, 40),
+    return ListenableBuilder(
+      listenable: session.unread,
+      builder: (context, _) {
+        return Scaffold(
+          backgroundColor: AppTheme.navy950,
+          body: Stack(
             children: [
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              IndexedStack(
+                index: _currentTab.index,
                 children: [
-                  const BrandMark(),
-                  IconButton(
-                    tooltip: 'Lifetime Stats',
-                    icon: const Icon(
-                      Icons.insights_rounded,
-                      color: AppTheme.seed,
-                    ),
-                    onPressed: () => LifetimeStatsSheet.show(context),
-                  ),
+                  _buildPlayTab(context, session),
+                  const ChatListView(),
+                  const HistoryView(),
                 ],
               ),
-              const SizedBox(height: 28),
-              _PlayerProfileTile(session: session),
-              if (session.backendFallbackReason != null) ...[
-                const SizedBox(height: 16),
-                _OfflineNotice(message: session.backendFallbackReason!),
-              ],
-              const SizedBox(height: 20),
-              _DailyTwinCard(session: session),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: () async {
-                        final config = await CreateRoomSheet.show(context);
-                        if (config == null || !context.mounted) return;
-                        await RoomLauncher.createAndOpen(
-                          context,
-                          session,
-                          config: config,
-                        );
-                      },
-                      icon: const Icon(Icons.add_circle_outline, size: 18),
-                      label: const Text('Create room'),
-                    ),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: MediaQuery.of(context).padding.bottom > 0
+                    ? MediaQuery.of(context).padding.bottom + 8
+                    : 24,
+                child: Center(
+                  child: FloatingBottomBar(
+                    currentTab: _currentTab,
+                    unreadCount: session.unread.totalUnread,
+                    onTabSelected: (tab) => setState(() => _currentTab = tab),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => _showJoinSheet(context, session),
-                      icon: const Icon(Icons.login_rounded, size: 18),
-                      label: const Text('Join room'),
-                    ),
-                  ),
-                ],
+                ),
               ),
-              const SizedBox(height: 32),
-              _InviteList(session: session),
-              _FriendList(session: session),
-              const SizedBox(height: 24),
-              const _HowItWorks(),
             ],
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
-  static void _showJoinSheet(BuildContext context, AppSession session) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppTheme.inkRaised,
-      constraints: const BoxConstraints(maxWidth: Layout.contentMaxWidth),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+  Widget _buildPlayTab(BuildContext context, AppSession session) {
+    // One fill-height column with spaceBetween: the gaps inside
+    // the blocks below are minimums, and whatever height the
+    // screen has left over is shared out equally between the
+    // blocks, so no single void collects anywhere. On a short
+    // screen the column takes its natural height and the page
+    // scrolls instead.
+    return SafeArea(
+      child: CustomScrollView(
+        slivers: [
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 110),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Header block: the brand row, plus the offline
+                  // notice when the backend fell back
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+          // Top Header Row: "Twin", "SAME? / WORD?" BrandMark, Settings Cog
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Twin',
+                        style: GoogleFonts.outfit(
+                          fontSize: 52,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -1.2,
+                          color: Colors.white,
+                          height: 1.0,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      InkWell(
+                        onTap: () => LifetimeStatsSheet.show(context),
+                        borderRadius: BorderRadius.circular(8),
+                        child: ListenableBuilder(
+                          listenable: StatsService.instance,
+                          builder: (context, _) {
+                            return FutureBuilder<LifetimeStats>(
+                              future: StatsService.instance.getStats(),
+                              initialData: StatsService.instance.cached,
+                              builder: (context, snapshot) {
+                                final stats = snapshot.data ?? StatsService.instance.cached;
+                                final best = stats?.fastestConvergenceRounds;
+                                return Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      best == null
+                                          ? 'Your best: no twinnings yet'
+                                          : 'Your best: matched in $best rounds',
+                                      style: GoogleFonts.outfit(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppTheme.mist,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    const Icon(
+                                      Icons.chevron_right_rounded,
+                                      size: 16,
+                                      color: AppTheme.mist,
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // Filled Settings Cog matching reference
+                  InkWell(
+                    onTap: () => SettingsSheet.show(context, session),
+                    borderRadius: BorderRadius.circular(22),
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.08),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+                      ),
+                      alignment: Alignment.center,
+                      child: const FilledSettingsCog(size: 22),
+                    ),
+                  ),
+                ],
+              ),
+
+              // Decorative Brand Mark positioned in header, scrolling with content
+              const Positioned(
+                top: 4,
+                right: 56,
+                child: IgnorePointer(
+                  child: ReferenceBrandMark(),
+                ),
+              ),
+            ],
+          ),
+
+          if (session.backendFallbackReason != null) ...[
+            const SizedBox(height: 16),
+            _OfflineNotice(message: session.backendFallbackReason!),
+          ],
+                    ],
+                  ),
+
+                  // Actions block: Create, Join, and any invites
+                  Padding(
+                    padding: const EdgeInsets.only(top: 20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+
+              // Primary actions: Create game (lime) and Join game (navy)
+              InkWell(
+                onTap: () async {
+                  HapticFeedback.lightImpact();
+                  final config = await CreateRoomSheet.show(context);
+                  if (config == null || !context.mounted) return;
+                  await RoomLauncher.createAndOpen(
+                    context,
+                    session,
+                    config: config,
+                  );
+                },
+                borderRadius: BorderRadius.circular(26),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
+                  decoration: BoxDecoration(
+                    color: AppTheme.lime,
+                    borderRadius: BorderRadius.circular(26),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.lime.withValues(alpha: 0.35),
+                        blurRadius: 20,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      const ConvergeIcon(size: 46),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Create game',
+                              style: GoogleFonts.outfit(
+                                fontSize: 21,
+                                fontWeight: FontWeight.w900,
+                                color: const Color(0xFF151434),
+                                height: 1.1,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              'Set it up, then send the invite',
+                              style: GoogleFonts.outfit(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF151434).withValues(alpha: 0.75),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        color: const Color(0xFF151434).withValues(alpha: 0.5),
+                        size: 26,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              // Join game: enter a friend's code
+              InkWell(
+                onTap: () async {
+                  final code = await JoinSheet.show(context);
+                  if (code != null && context.mounted) {
+                    RoomLauncher.joinAndOpen(context, session, code);
+                  }
+                },
+                borderRadius: BorderRadius.circular(26),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(26),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 46,
+                        height: 46,
+                        decoration: BoxDecoration(
+                          color: AppTheme.lime.withValues(alpha: 0.12),
+                          shape: BoxShape.circle,
+                        ),
+                        alignment: Alignment.center,
+                        child: const Text(
+                          '#',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w900,
+                            color: AppTheme.lime,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Join game',
+                              style: GoogleFonts.outfit(
+                                fontSize: 21,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white,
+                                height: 1.1,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              "Enter a friend's code",
+                              style: GoogleFonts.outfit(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.mist,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        color: AppTheme.mist,
+                        size: 26,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Incoming invites from friends
+              _InviteList(session: session),
+                      ],
+                    ),
+                  ),
+
+                  // Guide block: how it works, with the lifetime
+                  // stats strip under it
+                  Padding(
+                    padding: const EdgeInsets.only(top: 20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const _HowItWorks(),
+                        const SizedBox(height: 20),
+                        const _StatsStrip(),
+                      ],
+                    ),
+                  ),
+
+                  // Footer block: the rotating tagline in a
+                  // fixed-height slot, so rotation never shifts
+                  // the layout, then the word chips on their
+                  // beaded chain and the indicator dots
+                  Padding(
+                    padding: const EdgeInsets.only(top: 20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          height: 40,
+                          child: Center(
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 300),
+                              child: Text(
+                                _taglines[_taglineIdx],
+                      key: ValueKey(_taglineIdx),
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.outfit(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 3.0,
+                        color: AppTheme.mist,
+                        height: 1.8,
+                      ),
+                    ),
+                              ),
+                            ),
+                          ),
+                        const SizedBox(height: 14),
+
+                  // Word chips joined by the beaded chain, from the
+                  // reference artwork: 87x47 chips tilted -12 and
+                  // +11 degrees at the corners, the chain a dotted
+                  // parabola strung between their centres. The
+                  // words and colours rotate with the tagline. The
+                  // composition keeps the artwork's own 350 width,
+                  // centred: stretched across a wide window the
+                  // chain goes sparse and flat and stops looking
+                  // like the artwork.
+                  Center(
+                    child: SizedBox(
+                      width: 350,
+                      height: 56,
+                      child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        const Positioned.fill(
+                          child: CustomPaint(painter: _BeadChainPainter()),
+                        ),
+                        Positioned(
+                          left: 6,
+                          top: 4,
+                          child: Transform.rotate(
+                            angle: -12 * math.pi / 180,
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 300),
+                              child: _FooterChip(
+                                key: ValueKey(_taglineIdx),
+                                word: _chipPairs[_taglineIdx].$1,
+                                color: _chipPairs[_taglineIdx].$3,
+                              ),
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          right: 6,
+                          top: 4,
+                          child: Transform.rotate(
+                            angle: 11 * math.pi / 180,
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 300),
+                              child: _FooterChip(
+                                key: ValueKey(_taglineIdx),
+                                word: _chipPairs[_taglineIdx].$2,
+                                color: _chipPairs[_taglineIdx].$4,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 14),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(
+                      _taglines.length,
+                      (i) => AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        margin: const EdgeInsets.symmetric(horizontal: 3),
+                        width: i == _taglineIdx ? 16 : 6,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: i == _taglineIdx ? AppTheme.lime : Colors.white.withValues(alpha: 0.25),
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                      ),
+                    ),
+                  ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
-      builder: (_) => _JoinSheet(session: session),
+    );
+      }
+    }
+
+/// One of the two word chips in the footer: a small sticker in
+/// the reference artwork's proportions (87x47, radius 12, the same
+/// drop shadow), its word and colour rotating with the tagline.
+class _FooterChip extends StatelessWidget {
+  const _FooterChip({super.key, required this.word, required this.color});
+
+  final String word;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 87,
+      height: 47,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.35),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Text(
+        word,
+        softWrap: false,
+        style: GoogleFonts.outfit(
+          fontSize: 19.5,
+          fontWeight: FontWeight.w900,
+          letterSpacing: -0.5,
+          color: const Color(0xFF151434),
+        ),
+      ),
     );
   }
 }
 
-class _PlayerProfileTile extends StatelessWidget {
-  const _PlayerProfileTile({required this.session});
+/// The beaded chain between the footer chips, measured dot by
+/// dot from the reference artwork (segmentation of the original
+/// image, not a formula): the curve runs close to a parabola but
+/// flatter across the top, and the beads sit at radius 2.2 to 2.4
+/// rather than one exact size. Each entry is one dot: its
+/// position across the span (u = -1 at the left chip's centre,
+/// +1 at the right chip's) and its height relative to the chip
+/// centres, both at the design size, so the chain holds its
+/// shape at any screen width. The four outermost dots on each
+/// side continue the measured end slope behind the chips, where
+/// the artwork itself hides its own chain ends.
+class _BeadChainPainter extends CustomPainter {
+  const _BeadChainPainter();
 
-  final AppSession session;
+  static const _dots = <(double, double, double)>[
+    (-0.934, 6.33, 2.30),
+    (-0.840, 1.81, 2.30),
+    (-0.747, -1.86, 2.30),
+    (-0.653, -4.75, 2.30),
+    (-0.563, -6.75, 2.39),
+    (-0.466, -8.47, 2.29),
+    (-0.376, -11.72, 2.39),
+    (-0.286, -15.39, 2.29),
+    (-0.192, -17.86, 2.42),
+    (-0.098, -19.24, 2.39),
+    (-0.001, -19.76, 2.29),
+    (0.096, -19.24, 2.42),
+    (0.190, -17.82, 2.42),
+    (0.283, -15.23, 2.32),
+    (0.373, -11.71, 2.32),
+    (0.464, -8.49, 2.22),
+    (0.560, -6.77, 2.36),
+    (0.653, -4.75, 2.30),
+    (0.747, -1.86, 2.30),
+    (0.840, 1.81, 2.30),
+    (0.934, 6.33, 2.30),
+  ];
 
-  static void _showEditName(BuildContext context, AppSession session) {
-    final controller = TextEditingController(text: session.displayName);
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppTheme.inkRaised,
-      constraints: const BoxConstraints(maxWidth: Layout.contentMaxWidth),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (sheetContext) => Padding(
-        padding: EdgeInsets.fromLTRB(
-          24,
-          24,
-          24,
-          24 + MediaQuery.viewInsetsOf(sheetContext).bottom,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const SectionLabel('Your display name'),
-            const SizedBox(height: 8),
-            Text(
-              'How your name appears to friends and on shared results.',
-              style: TextStyle(
-                color: AppTheme.parchment.withValues(alpha: 0.6),
-                fontSize: 13,
-              ),
-            ),
-            const SizedBox(height: 18),
-            TextField(
-              controller: controller,
-              autofocus: true,
-              textCapitalization: TextCapitalization.words,
-              textInputAction: TextInputAction.done,
-              maxLength: 20,
-              onSubmitted: (val) {
-                final trimmed = val.trim();
-                if (trimmed.isNotEmpty) {
-                  session.setDisplayName(trimmed);
-                }
-                Navigator.of(sheetContext).pop();
-              },
-              decoration: const InputDecoration(
-                hintText: 'Your name',
-                counterText: '',
-                prefixIcon: Icon(Icons.person_outline),
-              ),
-            ),
-            const SizedBox(height: 18),
-            FilledButton(
-              onPressed: () {
-                final trimmed = controller.text.trim();
-                if (trimmed.isNotEmpty) {
-                  session.setDisplayName(trimmed);
-                }
-                Navigator.of(sheetContext).pop();
-              },
-              child: const Text('Save'),
-            ),
-          ],
-        ),
-      ),
-    );
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = AppTheme.mist.withValues(alpha: 0.8);
+    final cx = size.width / 2;
+    final halfSpan = cx - 49.5;
+    if (halfSpan <= 0) return;
+    for (final (u, yOff, r) in _dots) {
+      canvas.drawCircle(Offset(cx + u * halfSpan, 27.5 + yOff), r, paint);
+    }
   }
 
   @override
-  Widget build(BuildContext context) {
-    final name = session.displayName;
-    final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
 
-    return InkWell(
-      onTap: () => _showEditName(context, session),
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: AppTheme.inkCard,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: AppTheme.seed.withValues(alpha: 0.2),
-          ),
-        ),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 18,
-              backgroundColor: AppTheme.seed.withValues(alpha: 0.16),
-              child: Text(
-                initial,
-                style: const TextStyle(
-                  color: AppTheme.seed,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 16,
+/// Slim lifetime stats row under the guide: games played, games
+/// twinned, and the twin rate between them. Hidden until the first
+/// game is on the record, so a new player never sees a row of zeroes.
+class _StatsStrip extends StatelessWidget {
+  const _StatsStrip();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: StatsService.instance,
+      builder: (context, _) {
+        return FutureBuilder<LifetimeStats>(
+          future: StatsService.instance.getStats(),
+          initialData: StatsService.instance.cached,
+          builder: (context, snapshot) {
+            final stats = snapshot.data ?? StatsService.instance.cached;
+            if (stats == null || stats.totalGamesPlayed == 0) {
+              return const SizedBox.shrink();
+            }
+            final rate = (stats.convergenceRate * 100).round();
+            return Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 350),
+                child: Row(
+                  children: [
+                    _StatCell(value: '${stats.totalGamesPlayed}', label: 'Games played'),
+                    const _StatDivider(),
+                    _StatCell(value: '${stats.totalGamesTwinned}', label: 'Twinned'),
+                    const _StatDivider(),
+                    _StatCell(value: '$rate%', label: 'Twin rate'),
+                  ],
                 ),
               ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _StatCell extends StatelessWidget {
+  const _StatCell({required this.value, required this.label});
+
+  final String value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: GoogleFonts.outfit(
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
             ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.parchment,
-                    ),
-                  ),
-                  const SizedBox(height: 1),
-                  Text(
-                    'Tap to edit display name',
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      color: AppTheme.parchment.withValues(alpha: 0.5),
-                    ),
-                  ),
-                ],
-              ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: GoogleFonts.outfit(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.mist,
             ),
-            Icon(
-              Icons.edit_outlined,
-              size: 16,
-              color: AppTheme.parchment.withValues(alpha: 0.4),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
+    );
+  }
+}
+
+class _StatDivider extends StatelessWidget {
+  const _StatDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 1,
+      height: 30,
+      color: Colors.white.withValues(alpha: 0.10),
     );
   }
 }
@@ -254,120 +698,30 @@ class _OfflineNotice extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: AppTheme.inkCard,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppTheme.seed.withValues(alpha: 0.3)),
+        color: AppTheme.coral.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppTheme.coral.withValues(alpha: 0.35)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.cloud_off_rounded, size: 18, color: AppTheme.seed),
-          const SizedBox(width: 10),
+          const Icon(Icons.cloud_off_rounded, size: 20, color: AppTheme.coral),
+          const SizedBox(width: 12),
           Expanded(
             child: Text(
               message,
-              style: TextStyle(
-                fontSize: 12.5,
+              style: GoogleFonts.outfit(
+                fontSize: 13,
                 height: 1.45,
-                color: AppTheme.parchment.withValues(alpha: 0.75),
+                color: Colors.white.withValues(alpha: 0.9),
               ),
             ),
           ),
         ],
       ),
     );
-  }
-}
-
-class _JoinSheet extends StatefulWidget {
-  const _JoinSheet({required this.session});
-
-  final AppSession session;
-
-  @override
-  State<_JoinSheet> createState() => _JoinSheetState();
-}
-
-class _JoinSheetState extends State<_JoinSheet> {
-  final _controller = TextEditingController();
-  String? _error;
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _submit() {
-    final problem = RoomCode.validationError(_controller.text);
-    setState(() => _error = problem);
-    if (problem != null) return;
-    Navigator.of(context).pop();
-    RoomLauncher.joinAndOpen(context, widget.session, _controller.text);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        24,
-        24,
-        24,
-        24 + MediaQuery.viewInsetsOf(context).bottom,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const SectionLabel('Join a room'),
-          const SizedBox(height: 8),
-          Text(
-            'Enter the ${RoomCode.length}-character code your friend shared.',
-            style: TextStyle(
-              color: AppTheme.parchment.withValues(alpha: 0.6),
-              fontSize: 13,
-            ),
-          ),
-          const SizedBox(height: 20),
-          TextField(
-            controller: _controller,
-            autofocus: true,
-            textCapitalization: TextCapitalization.characters,
-            textAlign: TextAlign.center,
-            maxLength: RoomCode.length,
-            style: const TextStyle(
-              fontSize: 30,
-              letterSpacing: 12,
-              fontWeight: FontWeight.w600,
-            ),
-            inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp('[A-Za-z0-9]')),
-              _UpperCaseFormatter(),
-            ],
-            onSubmitted: (_) => _submit(),
-            decoration: InputDecoration(
-              counterText: '',
-              hintText: '- - - - -',
-              errorText: _error,
-            ),
-          ),
-          const SizedBox(height: 20),
-          FilledButton(onPressed: _submit, child: const Text('Join')),
-        ],
-      ),
-    );
-  }
-}
-
-class _UpperCaseFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    return newValue.copyWith(text: newValue.text.toUpperCase());
   }
 }
 
@@ -386,201 +740,109 @@ class _InviteList extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const SectionLabel('Waiting for you'),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                const Icon(
+                  Icons.mark_email_unread_rounded,
+                  color: AppTheme.lime,
+                  size: 18,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Waiting for you',
+                  style: GoogleFonts.outfit(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 12),
             for (final invite in invites)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Card(
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 6,
-                    ),
-                    leading: const Icon(
-                      Icons.mark_email_unread_outlined,
-                      color: AppTheme.seed,
-                    ),
-                    title: Text('${invite.fromName} started a game'),
-                    subtitle: Text(
-                      'Room ${invite.roomCode}',
-                      style: TextStyle(
-                        color: AppTheme.parchment.withValues(alpha: 0.55),
+              Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(
+                    color: AppTheme.lime.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    CharacterAvatar(name: invite.fromName, size: 44),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${invite.fromName} started a game',
+                            style: GoogleFonts.outfit(
+                              fontSize: 15.5,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Room ${invite.roomCode}',
+                            style: GoogleFonts.outfit(
+                              fontSize: 13,
+                              color: AppTheme.mist,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    trailing: Wrap(
-                      spacing: 4,
-                      children: [
-                        IconButton(
-                          tooltip: 'Dismiss',
-                          icon: const Icon(Icons.close, size: 18),
-                          onPressed: () =>
-                              session.backend.dismissInvite(invite.roomCode),
-                        ),
-                        FilledButton(
-                          style: FilledButton.styleFrom(
-                            minimumSize: const Size(64, 38),
-                            padding: const EdgeInsets.symmetric(horizontal: 14),
-                          ),
-                          onPressed: () {
-                            session.backend.dismissInvite(invite.roomCode);
-                            RoomLauncher.joinAndOpen(
-                              context,
-                              session,
-                              invite.roomCode,
-                            );
-                          },
-                          child: const Text('Play'),
-                        ),
-                      ],
+                    IconButton(
+                      tooltip: 'Dismiss',
+                      icon: const Icon(
+                        Icons.close_rounded,
+                        size: 20,
+                        color: AppTheme.mist,
+                      ),
+                      onPressed: () =>
+                          session.backend.dismissInvite(invite.roomCode),
                     ),
-                  ),
+                    const SizedBox(width: 4),
+                    FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppTheme.lime,
+                        foregroundColor: AppTheme.navy950,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      onPressed: () {
+                        session.backend.dismissInvite(invite.roomCode);
+                        RoomLauncher.joinAndOpen(
+                          context,
+                          session,
+                          invite.roomCode,
+                        );
+                      },
+                      child: Text(
+                        'Play',
+                        style: GoogleFonts.outfit(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            const SizedBox(height: 24),
           ],
         );
       },
-    );
-  }
-}
-
-class _FriendList extends StatelessWidget {
-  const _FriendList({required this.session});
-
-  final AppSession session;
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<List<Friend>>(
-      stream: session.friends,
-      builder: (context, snapshot) {
-        final friends = snapshot.data ?? const <Friend>[];
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const SectionLabel('Friends'),
-            const SizedBox(height: 12),
-            if (friends.isEmpty)
-              Text(
-                'Anyone you finish a connection with shows up here, so the next '
-                'game needs no code.',
-                style: TextStyle(
-                  fontSize: 13,
-                  height: 1.5,
-                  color: AppTheme.parchment.withValues(alpha: 0.5),
-                ),
-              )
-            else
-              for (final friend in friends)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: Card(
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 4,
-                      ),
-                      onTap: () => DuoChemistrySheet.show(
-                        context,
-                        friend: friend,
-                        session: session,
-                      ),
-                      leading: CircleAvatar(
-                        backgroundColor: AppTheme.seed.withValues(alpha: 0.16),
-                        child: Text(
-                          friend.name.isEmpty
-                              ? '?'
-                              : friend.name[0].toUpperCase(),
-                          style: const TextStyle(
-                            color: AppTheme.seed,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                      title: Text(friend.name),
-                      subtitle: Text(
-                        _subtitleFor(friend),
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppTheme.parchment.withValues(alpha: 0.5),
-                        ),
-                      ),
-                      trailing: IconButton(
-                        tooltip: 'Start a game',
-                        icon: const Icon(Icons.play_arrow_rounded),
-                        onPressed: () async {
-                          final config = await CreateRoomSheet.show(context);
-                          if (config == null || !context.mounted) return;
-                          RoomLauncher.inviteFriendAndOpen(
-                            context,
-                            session,
-                            friend.id,
-                            config: config,
-                          );
-                        },
-                      ),
-                      onLongPress: () => _confirmForget(context, friend),
-                    ),
-                  ),
-                ),
-          ],
-        );
-      },
-    );
-  }
-
-  String _subtitleFor(Friend friend) {
-    final parts = <String>[];
-    final games = friend.gamesPlayed;
-    parts.add('$games ${games == 1 ? "game" : "games"}');
-    if (friend.bestSyncRounds != null) {
-      parts.add('Best: ${friend.bestSyncRounds}r');
-    }
-    if (friend.averageRounds != null) {
-      parts.add('Avg: ${friend.averageRounds!.toStringAsFixed(1)}r');
-    }
-    if (friend.memoryBank.isNotEmpty) {
-      parts.add('${friend.memoryBank.length} twinned');
-    }
-    if (friend.lastPlayedAt != null) {
-      parts.add(_relative(friend.lastPlayedAt!));
-    }
-    return parts.join(' · ');
-  }
-
-  static String _relative(DateTime when) {
-    final diff = DateTime.now().difference(when);
-    if (diff.inMinutes < 1) return 'just now';
-    if (diff.inHours < 1) return '${diff.inMinutes}m ago';
-    if (diff.inDays < 1) return '${diff.inHours}h ago';
-    if (diff.inDays < 30) return '${diff.inDays}d ago';
-    return '${(diff.inDays / 30).floor()}mo ago';
-  }
-
-  void _confirmForget(BuildContext context, Friend friend) {
-    showDialog<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppTheme.inkCard,
-        title: Text('Remove ${friend.name}?'),
-        content: const Text(
-          'You will need a room code to play together again.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              session.backend.forgetFriend(friend.id);
-              Navigator.of(dialogContext).pop();
-            },
-            child: const Text('Remove'),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -594,19 +856,37 @@ class _HowItWorks extends StatelessWidget {
       'You both type a word in private.',
       'Both words are revealed at the same time.',
       'Now aim for a word in between the two. So do they.',
-      'Keep going until you both type the same word. Then you have won '
-          'together.',
+      'Keep going until you both type the same word. Then you have twinned!',
     ];
+
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppTheme.inkRaised,
-        borderRadius: BorderRadius.circular(18),
+        color: Colors.white.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SectionLabel('How it works'),
+          Row(
+            children: [
+              const Icon(
+                Icons.help_outline_rounded,
+                size: 18,
+                color: AppTheme.lime,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'How it works',
+                style: GoogleFonts.outfit(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 14),
           for (var i = 0; i < steps.length; i++)
             Padding(
@@ -614,186 +894,37 @@ class _HowItWorks extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    '${i + 1}',
-                    style: TextStyle(
-                      color: AppTheme.seed.withValues(alpha: 0.8),
-                      fontWeight: FontWeight.w700,
-                      fontSize: 12,
+                  Container(
+                    width: 22,
+                    height: 22,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppTheme.lime.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      '${i + 1}',
+                      style: GoogleFonts.outfit(
+                        color: AppTheme.lime,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       steps[i],
-                      style: TextStyle(
-                        fontSize: 13,
-                        height: 1.5,
-                        color: AppTheme.parchment.withValues(alpha: 0.62),
+                      style: GoogleFonts.outfit(
+                        fontSize: 13.5,
+                        height: 1.45,
+                        color: AppTheme.mist,
                       ),
                     ),
                   ),
                 ],
               ),
             ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DailyTwinCard extends StatefulWidget {
-  const _DailyTwinCard({required this.session});
-
-  final AppSession session;
-
-  @override
-  State<_DailyTwinCard> createState() => _DailyTwinCardState();
-}
-
-class _DailyTwinCardState extends State<_DailyTwinCard> {
-  DailyTwinStatus? _status;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    final status = await DailyTwinService.instance.getStatus();
-    if (mounted) {
-      setState(() => _status = status);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final status = _status;
-    if (status == null) {
-      return const SizedBox.shrink();
-    }
-
-    final puzzle = status.puzzle;
-    final hours = puzzle.timeRemaining.inHours;
-    final minutes = puzzle.timeRemaining.inMinutes % 60;
-
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppTheme.inkCard,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: status.isCompletedToday
-              ? AppTheme.converged.withValues(alpha: 0.35)
-              : AppTheme.seed.withValues(alpha: 0.28),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: AppTheme.seed.withValues(alpha: 0.16),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(
-                      Icons.wb_sunny_rounded,
-                      size: 16,
-                      color: AppTheme.seed,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'The Daily Twin #${puzzle.puzzleNumber}',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.parchment,
-                    ),
-                  ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppTheme.seed.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.local_fire_department_rounded,
-                      size: 14,
-                      color: AppTheme.seed,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${status.currentStreak} day streak',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.seed,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            status.isCompletedToday
-                ? 'Completed today! Resets in ${hours}h ${minutes}m.'
-                : 'Can you bridge today\'s global anchor pair? Resets in ${hours}h ${minutes}m.',
-            style: TextStyle(
-              fontSize: 12.5,
-              height: 1.45,
-              color: AppTheme.parchment.withValues(alpha: 0.65),
-            ),
-          ),
-          const SizedBox(height: 14),
-          FilledButton.icon(
-            style: FilledButton.styleFrom(
-              backgroundColor: status.isCompletedToday
-                  ? AppTheme.inkRaised
-                  : AppTheme.seed,
-              foregroundColor: status.isCompletedToday
-                  ? AppTheme.parchment.withValues(alpha: 0.8)
-                  : AppTheme.ink,
-            ),
-            onPressed: () async {
-              final config = GameConfig(
-                startWordA: puzzle.startWordA,
-                startWordB: puzzle.startWordB,
-                theme: 'The Daily Twin',
-              );
-              await RoomLauncher.createAndOpen(
-                context,
-                widget.session,
-                config: config,
-              );
-              _load();
-            },
-            icon: Icon(
-              status.isCompletedToday
-                  ? Icons.check_circle_outline_rounded
-                  : Icons.play_arrow_rounded,
-              size: 18,
-            ),
-            label: Text(
-              status.isCompletedToday
-                  ? 'Play again (${puzzle.startWordA} ↔ ${puzzle.startWordB})'
-                  : 'Play Daily Challenge',
-            ),
-          ),
         ],
       ),
     );
