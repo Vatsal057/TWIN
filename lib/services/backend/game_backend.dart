@@ -55,6 +55,30 @@ abstract class GameBackend {
   Future<void> setAvatarId(String avatarId);
   String get avatarId;
 
+  /// Live view of any player's current avatar, read from their profile
+  /// rather than from a room. Rooms carry a copy of the face from when
+  /// the player last wrote to that room, so surfaces that are not tied
+  /// to a game in progress (the Chats tab above all) follow this
+  /// instead and reflect a change the moment it is saved. Emits null
+  /// when no avatar is known for the player.
+  Stream<String?> watchAvatarId(String playerId);
+
+  // ---- usernames ----
+
+  /// True when [username] is free, or already belongs to this player.
+  /// The registry is one record per username, so this never needs a
+  /// listing of the whole user base.
+  Future<bool> isUsernameAvailable(String username);
+
+  /// Claims [username] for this player and publishes it on their
+  /// profile. Returns false when somebody else holds it: the check
+  /// above can race, this write is the guarantee.
+  Future<bool> claimUsername(String username);
+
+  /// Gives up [username] when this player holds it, so an old handle
+  /// frees up for others after a change.
+  Future<void> releaseUsername(String username);
+
   // ---- rooms ----
 
   /// Creates a room with a unique short code and `status: waiting`.
@@ -118,6 +142,8 @@ abstract class GameBackend {
   Future<void> sendMessage({
     required String conversationId,
     required String text,
+    String? kind,
+    String? roomCode,
   });
 
   // ---- friends ----

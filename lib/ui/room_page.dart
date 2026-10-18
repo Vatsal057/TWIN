@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 
 import '../state/app_session.dart';
 import '../state/game_controller.dart';
-import 'app_theme.dart';
 import 'views/game_view.dart';
 import 'views/lobby_view.dart';
 import 'views/result_view.dart';
@@ -46,17 +45,20 @@ class _RoomPageState extends State<RoomPage> {
   Future<bool> _confirmLeave() async {
     final room = _game.room;
     if (room == null || _game.stage == ViewStage.finished) return true;
+    // Still waiting for the second player: backing out is not leaving.
+    // The room stays open under Active games and the code keeps
+    // working; closing it for good is the lobby's own close action
+    // (see _closeRoom).
+    if (!room.isFull) return true;
 
     final leave = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppTheme.inkCard,
+        backgroundColor: context.read<AppSession>().palette.sheet,
         title: const Text('Leave this game?'),
-        content: Text(
-          room.isFull
-              ? 'The round in progress ends and your opponent is told the '
-                    'game was abandoned.'
-              : 'This room will be closed, and the code will stop working.',
+        content: const Text(
+          'The round in progress ends and your opponent is told the '
+          'game was abandoned.',
         ),
         actions: [
           TextButton(
@@ -75,6 +77,40 @@ class _RoomPageState extends State<RoomPage> {
       return true;
     }
     return false;
+  }
+
+  /// The lobby's close (X) action: the one destructive exit from a
+  /// waiting room. Confirms here, closes the room, then pops; the pop
+  /// itself passes freely because the room is no longer in play.
+  Future<void> _closeRoom() async {
+    if (_game.room == null) {
+      if (mounted) Navigator.of(context).pop();
+      return;
+    }
+    final close = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: context.read<AppSession>().palette.sheet,
+        title: const Text('Close this room?'),
+        content: const Text(
+          'This room will be closed, and the code will stop working.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Keep waiting'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Close room'),
+          ),
+        ],
+      ),
+    );
+    if (close == true && mounted) {
+      await _game.leave();
+      if (mounted) Navigator.of(context).pop();
+    }
   }
 
   @override
@@ -98,6 +134,7 @@ class _RoomPageState extends State<RoomPage> {
                 ViewStage.connecting => const _ConnectingView(),
                 ViewStage.waitingForPlayers => LobbyView(
                   key: const ValueKey('lobby'),
+                  onCloseRoom: _closeRoom,
                 ),
                 ViewStage.finished => ResultView(key: const ValueKey('result')),
                 _ => GameView(key: const ValueKey('game')),

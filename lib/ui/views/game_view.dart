@@ -6,7 +6,6 @@ import '../../models/room.dart';
 import '../../services/backend/game_backend.dart';
 import '../../state/app_session.dart';
 import '../../state/game_controller.dart';
-import '../app_theme.dart';
 import '../widgets/anchor_pair.dart';
 import '../widgets/reference_round_header.dart';
 import '../widgets/reveal_overlay.dart';
@@ -25,6 +24,7 @@ class GameView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.watch<AppSession>().palette;
     final game = context.watch<GameController>();
     final room = game.room;
     if (room == null) return const SizedBox.shrink();
@@ -47,7 +47,7 @@ class GameView extends StatelessWidget {
     }
 
     return Scaffold(
-      backgroundColor: AppTheme.navy950,
+      backgroundColor: p.bg,
       body: Stack(
         clipBehavior: Clip.none,
         children: [
@@ -64,9 +64,9 @@ class GameView extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.06),
+                        color: p.surface,
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                        border: Border.all(color: p.border),
                       ),
                       child: Text(
                         theme.toUpperCase(),
@@ -74,7 +74,7 @@ class GameView extends StatelessWidget {
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 1.2,
-                          color: AppTheme.mist,
+                          color: p.muted,
                         ),
                       ),
                     ),
@@ -116,7 +116,7 @@ class GameView extends StatelessWidget {
                                   game.errorMessage!,
                                   style: GoogleFonts.outfit(
                                     fontSize: 13,
-                                    color: AppTheme.coral,
+                                    color: p.accent2Ink,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -186,10 +186,10 @@ class _GameHeader extends StatelessWidget {
               height: 44,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.08),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+                color: session.palette.text.withValues(alpha: 0.08),
+                border: Border.all(color: session.palette.text.withValues(alpha: 0.12)),
               ),
-              child: const Icon(Icons.close_rounded, color: Colors.white, size: 20),
+              child: Icon(Icons.close_rounded, color: session.palette.text, size: 20),
             ),
           ),
 
@@ -203,7 +203,7 @@ class _GameHeader extends StatelessWidget {
                 style: GoogleFonts.outfit(
                   fontSize: 20,
                   fontWeight: FontWeight.w900,
-                  color: Colors.white,
+                  color: session.palette.text,
                 ),
               ),
               const SizedBox(height: 2),
@@ -212,7 +212,7 @@ class _GameHeader extends StatelessWidget {
                 style: GoogleFonts.outfit(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: AppTheme.mist,
+                  color: session.palette.muted,
                 ),
               ),
             ],
@@ -229,6 +229,7 @@ class _GameHeader extends StatelessWidget {
                 opponentId: opp,
                 opponentName: game.opponentName,
                 room: room,
+                insideRoom: true,
               );
             },
             borderRadius: BorderRadius.circular(22),
@@ -240,10 +241,10 @@ class _GameHeader extends StatelessWidget {
                   height: 44,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.white.withValues(alpha: 0.08),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+                    color: session.palette.text.withValues(alpha: 0.08),
+                    border: Border.all(color: session.palette.text.withValues(alpha: 0.12)),
                   ),
-                  child: const Icon(Icons.chat_bubble_outline_rounded, color: Colors.white, size: 20),
+                  child: Icon(Icons.chat_bubble_outline_rounded, color: session.palette.text, size: 20),
                 ),
                 ListenableBuilder(
                   listenable: session.unread,
@@ -258,7 +259,7 @@ class _GameHeader extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                       decoration: BoxDecoration(
-                        color: AppTheme.coral,
+                        color: session.palette.accent2,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
@@ -294,6 +295,7 @@ class _PromptSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.watch<AppSession>().palette;
     final anchor = game.anchorRound;
     final config = game.room?.config;
 
@@ -309,7 +311,7 @@ class _PromptSection extends StatelessWidget {
       final isThemed = config != null && config.hasTheme;
 
       return CustomPaint(
-        painter: _DottedBoxPainter(),
+        painter: _DottedBoxPainter(color: p.text),
         child: Container(
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 26),
@@ -320,7 +322,7 @@ class _PromptSection extends StatelessWidget {
                 style: GoogleFonts.outfit(
                   fontSize: 18,
                   fontWeight: FontWeight.w900,
-                  color: Colors.white,
+                  color: p.text,
                 ),
               ),
               const SizedBox(height: 8),
@@ -332,7 +334,7 @@ class _PromptSection extends StatelessWidget {
                 style: GoogleFonts.outfit(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: AppTheme.mist,
+                  color: p.muted,
                   height: 1.4,
                 ),
               ),
@@ -378,21 +380,22 @@ class _WaitingForOpponentToJoin extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.watch<AppSession>().palette;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
+        color: p.surface,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+        border: Border.all(color: p.border),
       ),
       child: Row(
         children: [
-          const SizedBox(
+          SizedBox(
             width: 16,
             height: 16,
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              color: AppTheme.lime,
+              color: p.accent,
             ),
           ),
           const SizedBox(width: 14),
@@ -402,7 +405,7 @@ class _WaitingForOpponentToJoin extends StatelessWidget {
               style: GoogleFonts.outfit(
                 fontSize: 13.5,
                 height: 1.4,
-                color: AppTheme.mist,
+                color: p.muted,
               ),
             ),
           ),
@@ -437,6 +440,7 @@ class _LockedStateState extends State<_LockedState>
 
   @override
   Widget build(BuildContext context) {
+    final p = context.watch<AppSession>().palette;
     final game = widget.game;
 
     return Column(
@@ -446,9 +450,9 @@ class _LockedStateState extends State<_LockedState>
         Container(
           height: 56,
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.05),
+            color: p.surface,
             borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+            border: Border.all(color: p.border),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 22),
           alignment: Alignment.centerLeft,
@@ -459,11 +463,11 @@ class _LockedStateState extends State<_LockedState>
                 style: GoogleFonts.outfit(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: AppTheme.mist.withValues(alpha: 0.8),
+                  color: p.muted.withValues(alpha: 0.8),
                 ),
               ),
               const Spacer(),
-              const Icon(Icons.lock_rounded, size: 16, color: AppTheme.mist),
+              Icon(Icons.lock_rounded, size: 16, color: p.muted),
             ],
           ),
         ),
@@ -474,9 +478,9 @@ class _LockedStateState extends State<_LockedState>
         Container(
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.05),
+            color: p.surface,
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+            border: Border.all(color: p.border),
           ),
           child: Column(
             children: [
@@ -496,7 +500,7 @@ class _LockedStateState extends State<_LockedState>
                             width: 5,
                             height: 5,
                             decoration: BoxDecoration(
-                              color: AppTheme.mist.withValues(alpha: alpha),
+                              color: p.muted.withValues(alpha: alpha),
                               shape: BoxShape.circle,
                             ),
                           );
@@ -510,7 +514,7 @@ class _LockedStateState extends State<_LockedState>
                     style: GoogleFonts.outfit(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
-                      color: AppTheme.mist,
+                      color: p.muted,
                     ),
                   ),
                 ],
@@ -526,14 +530,14 @@ class _LockedStateState extends State<_LockedState>
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.08),
+                      color: p.text.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+                      border: Border.all(color: p.text.withValues(alpha: 0.14)),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.notifications_active_rounded, size: 14, color: AppTheme.mist),
+                        Icon(Icons.notifications_active_rounded, size: 14, color: p.muted),
                         const SizedBox(width: 6),
                         Text(
                           'NUDGE',
@@ -541,7 +545,7 @@ class _LockedStateState extends State<_LockedState>
                             fontSize: 11,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 1.2,
-                            color: Colors.white,
+                            color: p.text,
                           ),
                         ),
                       ],
@@ -555,7 +559,7 @@ class _LockedStateState extends State<_LockedState>
                   style: GoogleFonts.outfit(
                     fontSize: 12.5,
                     fontStyle: FontStyle.italic,
-                    color: AppTheme.mist.withValues(alpha: 0.7),
+                    color: p.muted.withValues(alpha: 0.7),
                   ),
                 ),
               ],
@@ -568,10 +572,14 @@ class _LockedStateState extends State<_LockedState>
 }
 
 class _DottedBoxPainter extends CustomPainter {
+  const _DottedBoxPainter({required this.color});
+
+  final Color color;
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.18)
+      ..color = color.withValues(alpha: 0.18)
       ..strokeWidth = 2.0
       ..style = PaintingStyle.stroke;
 
@@ -597,6 +605,7 @@ class _DottedBoxPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _DottedBoxPainter oldDelegate) =>
+      oldDelegate.color != color;
 }
 

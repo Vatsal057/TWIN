@@ -8,6 +8,7 @@ import '../game/game_engine.dart';
 import '../models/game_round.dart';
 import '../models/room.dart';
 import '../services/backend/game_backend.dart';
+import '../services/sound_service.dart';
 import '../services/stats_service.dart';
 
 /// What the game screen should render right now.
@@ -185,7 +186,7 @@ class GameController extends ChangeNotifier {
         _lastNudgeReceivedHandled = room.lastNudgeAt;
         _incomingNudgeAlert = '$opponentName gave you a nudge!';
         HapticFeedback.mediumImpact();
-        SystemSound.play(SystemSoundType.alert);
+        SoundService.instance.nudge();
       }
     }
 
@@ -203,6 +204,11 @@ class GameController extends ChangeNotifier {
     // Record game completion metrics, chemistry & lifetime stats
     if (!_gameCompletionRecorded && room.isFinished) {
       _gameCompletionRecorded = true;
+      if (room.converged) {
+        SoundService.instance.twin();
+      } else {
+        SoundService.instance.gameEnd();
+      }
       final other = room.opponentOf(localPlayerId);
       final twinnedWord = room.converged ? room.lastRound?.p1Word : null;
       if (other != null) {
@@ -365,6 +371,7 @@ class GameController extends ChangeNotifier {
   }
 
   void _beginReveal(GameRound round) {
+    if (!round.matched) SoundService.instance.reveal();
     _revealing = round;
     _revealTimer?.cancel();
     _revealTimer = Timer(revealDuration, dismissReveal);

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../app_theme.dart';
+import 'package:provider/provider.dart';
+import '../../services/sound_service.dart';
+import '../../state/app_session.dart';
 
 /// Word input and "Lock it in" button matching reference Screenshot 2:
 /// - Rounded capsule input ("Type your word") with frosted background and subtle border
@@ -40,6 +42,7 @@ class _WordComposerState extends State<WordComposer> {
     HapticFeedback.lightImpact();
     final ok = await widget.onSubmit(text);
     if (ok && mounted) {
+      SoundService.instance.lockIn();
       _controller.clear();
       _focus.unfocus();
     }
@@ -47,6 +50,7 @@ class _WordComposerState extends State<WordComposer> {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.watch<AppSession>().palette;
     final active = widget.enabled && !widget.isSubmitting;
 
     return Column(
@@ -56,10 +60,10 @@ class _WordComposerState extends State<WordComposer> {
         Container(
           height: 56,
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.08),
+            color: p.field,
             borderRadius: BorderRadius.circular(28),
             border: Border.all(
-              color: Colors.white.withValues(alpha: 0.16),
+              color: p.border,
             ),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 22),
@@ -75,7 +79,7 @@ class _WordComposerState extends State<WordComposer> {
             style: GoogleFonts.outfit(
               fontSize: 17,
               fontWeight: FontWeight.w700,
-              color: Colors.white,
+              color: p.text,
             ),
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp(r"[A-Za-z0-9'\- ]")),
@@ -88,7 +92,7 @@ class _WordComposerState extends State<WordComposer> {
               // paints a square-cornered rectangle inside the pill.
               filled: false,
               hintStyle: GoogleFonts.outfit(
-                color: AppTheme.mist.withValues(alpha: 0.75),
+                color: p.muted.withValues(alpha: 0.75),
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
               ),
@@ -110,23 +114,23 @@ class _WordComposerState extends State<WordComposer> {
           child: ElevatedButton(
             onPressed: active ? _submit : null,
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.lime,
-              disabledBackgroundColor: AppTheme.lime.withValues(alpha: 0.45),
-              foregroundColor: AppTheme.navy950,
-              disabledForegroundColor: AppTheme.navy950.withValues(alpha: 0.5),
+              backgroundColor: p.accent,
+              disabledBackgroundColor: p.accent.withValues(alpha: 0.45),
+              foregroundColor: p.onAccent,
+              disabledForegroundColor: p.onAccent.withValues(alpha: 0.5),
               elevation: 4,
-              shadowColor: AppTheme.lime.withValues(alpha: 0.25),
+              shadowColor: p.accent.withValues(alpha: 0.25),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(28),
               ),
             ),
             child: widget.isSubmitting
-                ? const SizedBox(
+                ? SizedBox(
                     width: 22,
                     height: 22,
                     child: CircularProgressIndicator(
                       strokeWidth: 2.4,
-                      color: AppTheme.navy950,
+                      color: p.onAccent,
                     ),
                   )
                 : Text(
@@ -134,7 +138,7 @@ class _WordComposerState extends State<WordComposer> {
                     style: GoogleFonts.outfit(
                       fontSize: 17,
                       fontWeight: FontWeight.w900,
-                      color: AppTheme.navy950,
+                      color: p.onAccent,
                       letterSpacing: 0.2,
                     ),
                   ),

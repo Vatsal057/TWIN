@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../app_theme.dart';
+import 'package:provider/provider.dart';
 import '../../services/room_code.dart';
+import '../../state/app_session.dart';
 
 /// Dedicated Join Room modal sheet:
 /// - 5 large letter boxes matching RoomCode.length
@@ -13,7 +14,7 @@ class JoinSheet extends StatefulWidget {
     return showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppTheme.navy900,
+      backgroundColor: Provider.of<AppSession>(context, listen: false).palette.sheet,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
@@ -63,6 +64,7 @@ class _JoinSheetState extends State<JoinSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.watch<AppSession>().palette;
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     final code = _controller.text;
 
@@ -78,7 +80,7 @@ class _JoinSheetState extends State<JoinSheet> {
               width: 38,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
+                color: p.text.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -95,7 +97,7 @@ class _JoinSheetState extends State<JoinSheet> {
           const SizedBox(height: 6),
           Text(
             'Enter the ${RoomCode.length}-character code shared by your friend.',
-            style: const TextStyle(fontSize: 13.5, color: AppTheme.mist),
+            style: TextStyle(fontSize: 13.5, color: p.muted),
           ),
           const SizedBox(height: 26),
 
@@ -112,14 +114,14 @@ class _JoinSheetState extends State<JoinSheet> {
                     height: 64,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: AppTheme.navy800,
+                      color: p.field,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
                         color: i == code.length
-                            ? AppTheme.lime
+                            ? p.accent
                             : (i < code.length
-                                ? AppTheme.lime.withValues(alpha: 0.5)
-                                : Colors.white.withValues(alpha: 0.12)),
+                                ? p.accent.withValues(alpha: 0.5)
+                                : p.border),
                         width: i == code.length ? 2 : 1,
                       ),
                     ),
@@ -128,7 +130,7 @@ class _JoinSheetState extends State<JoinSheet> {
                       style: GoogleFonts.outfit(
                         fontSize: 28,
                         fontWeight: FontWeight.w900,
-                        color: AppTheme.lime,
+                        color: p.accentInk,
                       ),
                     ),
                   ),

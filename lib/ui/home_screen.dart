@@ -8,10 +8,10 @@ import 'package:provider/provider.dart';
 import '../models/game_invite.dart';
 import '../services/stats_service.dart';
 import '../state/app_session.dart';
-import 'app_theme.dart';
 import 'room_launcher.dart';
 import 'views/chat_list_view.dart';
 import 'views/history_view.dart';
+import 'views/profile_view.dart';
 import 'widgets/character_avatar.dart';
 import 'widgets/create_room_sheet.dart';
 import 'widgets/floating_bottom_bar.dart';
@@ -19,7 +19,6 @@ import 'widgets/join_sheet.dart';
 import 'widgets/lifetime_stats_sheet.dart';
 import 'widgets/reference_brand_mark.dart';
 import 'widgets/reference_icons.dart';
-import 'widgets/settings_sheet.dart';
 
 const _taglines = [
   'Different words\nbring you closer',
@@ -71,7 +70,7 @@ class _HomeScreenState extends State<HomeScreen> {
       listenable: session.unread,
       builder: (context, _) {
         return Scaffold(
-          backgroundColor: AppTheme.navy950,
+          backgroundColor: session.palette.bg,
           body: Stack(
             children: [
               IndexedStack(
@@ -80,6 +79,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   _buildPlayTab(context, session),
                   const ChatListView(),
                   const HistoryView(),
+                  const ProfileView(),
                 ],
               ),
               Positioned(
@@ -91,7 +91,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Center(
                   child: FloatingBottomBar(
                     currentTab: _currentTab,
+                    palette: session.palette,
                     unreadCount: session.unread.totalUnread,
+                    profileAvatarId: session.profileAvatarId,
+                    profileName: session.displayName,
                     onTabSelected: (tab) => setState(() => _currentTab = tab),
                   ),
                 ),
@@ -104,6 +107,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildPlayTab(BuildContext context, AppSession session) {
+    final p = session.palette;
     // One fill-height column with spaceBetween: the gaps inside
     // the blocks below are minimums, and whatever height the
     // screen has left over is shared out equally between the
@@ -144,7 +148,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           fontSize: 52,
                           fontWeight: FontWeight.w900,
                           letterSpacing: -1.2,
-                          color: Colors.white,
+                          color: p.text,
                           height: 1.0,
                         ),
                       ),
@@ -171,14 +175,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                       style: GoogleFonts.outfit(
                                         fontSize: 14,
                                         fontWeight: FontWeight.w600,
-                                        color: AppTheme.mist,
+                                        color: p.muted,
                                       ),
                                     ),
                                     const SizedBox(width: 4),
-                                    const Icon(
+                                    Icon(
                                       Icons.chevron_right_rounded,
                                       size: 16,
-                                      color: AppTheme.mist,
+                                      color: p.muted,
                                     ),
                                   ],
                                 );
@@ -190,29 +194,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
 
-                  // Filled Settings Cog matching reference
-                  InkWell(
-                    onTap: () => SettingsSheet.show(context, session),
-                    borderRadius: BorderRadius.circular(22),
-                    child: Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.08),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-                      ),
-                      alignment: Alignment.center,
-                      child: const FilledSettingsCog(size: 22),
-                    ),
-                  ),
                 ],
               ),
 
               // Decorative Brand Mark positioned in header, scrolling with content
               const Positioned(
                 top: 4,
-                right: 56,
+                right: 0,
                 child: IgnorePointer(
                   child: ReferenceBrandMark(),
                 ),
@@ -251,11 +239,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
                   decoration: BoxDecoration(
-                    color: AppTheme.lime,
+                    color: p.accent,
                     borderRadius: BorderRadius.circular(26),
                     boxShadow: [
                       BoxShadow(
-                        color: AppTheme.lime.withValues(alpha: 0.35),
+                        color: p.accent.withValues(alpha: 0.35),
                         blurRadius: 20,
                         offset: const Offset(0, 6),
                       ),
@@ -274,7 +262,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               style: GoogleFonts.outfit(
                                 fontSize: 21,
                                 fontWeight: FontWeight.w900,
-                                color: const Color(0xFF151434),
+                                color: p.onAccent,
                                 height: 1.1,
                               ),
                             ),
@@ -284,7 +272,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               style: GoogleFonts.outfit(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
-                                color: const Color(0xFF151434).withValues(alpha: 0.75),
+                                color: p.onAccent.withValues(alpha: 0.75),
                               ),
                             ),
                           ],
@@ -292,7 +280,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       Icon(
                         Icons.chevron_right_rounded,
-                        color: const Color(0xFF151434).withValues(alpha: 0.5),
+                        color: p.onAccent.withValues(alpha: 0.5),
                         size: 26,
                       ),
                     ],
@@ -314,9 +302,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.05),
+                    color: p.surface,
                     borderRadius: BorderRadius.circular(26),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+                    border: Border.all(color: p.border),
                   ),
                   child: Row(
                     children: [
@@ -324,16 +312,16 @@ class _HomeScreenState extends State<HomeScreen> {
                         width: 46,
                         height: 46,
                         decoration: BoxDecoration(
-                          color: AppTheme.lime.withValues(alpha: 0.12),
+                          color: p.accentSoft,
                           shape: BoxShape.circle,
                         ),
                         alignment: Alignment.center,
-                        child: const Text(
+                        child: Text(
                           '#',
                           style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w900,
-                            color: AppTheme.lime,
+                            color: p.accentInk,
                           ),
                         ),
                       ),
@@ -347,7 +335,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               style: GoogleFonts.outfit(
                                 fontSize: 21,
                                 fontWeight: FontWeight.w900,
-                                color: Colors.white,
+                                color: p.text,
                                 height: 1.1,
                               ),
                             ),
@@ -357,15 +345,15 @@ class _HomeScreenState extends State<HomeScreen> {
                               style: GoogleFonts.outfit(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
-                                color: AppTheme.mist,
+                                color: p.muted,
                               ),
                             ),
                           ],
                         ),
                       ),
-                      const Icon(
+                      Icon(
                         Icons.chevron_right_rounded,
-                        color: AppTheme.mist,
+                        color: p.muted,
                         size: 26,
                       ),
                     ],
@@ -416,7 +404,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 3.0,
-                        color: AppTheme.mist,
+                        color: p.muted,
                         height: 1.8,
                       ),
                     ),
@@ -441,8 +429,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Stack(
                       clipBehavior: Clip.none,
                       children: [
-                        const Positioned.fill(
-                          child: CustomPaint(painter: _BeadChainPainter()),
+                        Positioned.fill(
+                          child: CustomPaint(painter: _BeadChainPainter(color: p.muted)),
                         ),
                         Positioned(
                           left: 6,
@@ -490,7 +478,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         width: i == _taglineIdx ? 16 : 6,
                         height: 5,
                         decoration: BoxDecoration(
-                          color: i == _taglineIdx ? AppTheme.lime : Colors.white.withValues(alpha: 0.25),
+                          color: i == _taglineIdx ? p.accentInk : p.text.withValues(alpha: 0.25),
                           borderRadius: BorderRadius.circular(3),
                         ),
                       ),
@@ -561,7 +549,9 @@ class _FooterChip extends StatelessWidget {
 /// side continue the measured end slope behind the chips, where
 /// the artwork itself hides its own chain ends.
 class _BeadChainPainter extends CustomPainter {
-  const _BeadChainPainter();
+  const _BeadChainPainter({required this.color});
+
+  final Color color;
 
   static const _dots = <(double, double, double)>[
     (-0.934, 6.33, 2.30),
@@ -589,7 +579,7 @@ class _BeadChainPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = AppTheme.mist.withValues(alpha: 0.8);
+    final paint = Paint()..color = color.withValues(alpha: 0.8);
     final cx = size.width / 2;
     final halfSpan = cx - 49.5;
     if (halfSpan <= 0) return;
@@ -599,7 +589,8 @@ class _BeadChainPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _BeadChainPainter oldDelegate) =>
+      oldDelegate.color != color;
 }
 
 /// Slim lifetime stats row under the guide: games played, games
@@ -651,6 +642,7 @@ class _StatCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.watch<AppSession>().palette;
     return Expanded(
       child: Column(
         children: [
@@ -659,7 +651,7 @@ class _StatCell extends StatelessWidget {
             style: GoogleFonts.outfit(
               fontSize: 20,
               fontWeight: FontWeight.w900,
-              color: Colors.white,
+              color: p.text,
             ),
           ),
           const SizedBox(height: 2),
@@ -668,7 +660,7 @@ class _StatCell extends StatelessWidget {
             style: GoogleFonts.outfit(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: AppTheme.mist,
+              color: p.muted,
             ),
           ),
         ],
@@ -685,7 +677,7 @@ class _StatDivider extends StatelessWidget {
     return Container(
       width: 1,
       height: 30,
-      color: Colors.white.withValues(alpha: 0.10),
+      color: context.watch<AppSession>().palette.border,
     );
   }
 }
@@ -697,17 +689,18 @@ class _OfflineNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.watch<AppSession>().palette;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: AppTheme.coral.withValues(alpha: 0.12),
+        color: p.accent2.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppTheme.coral.withValues(alpha: 0.35)),
+        border: Border.all(color: p.accent2.withValues(alpha: 0.35)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.cloud_off_rounded, size: 20, color: AppTheme.coral),
+          Icon(Icons.cloud_off_rounded, size: 20, color: p.accent2Ink),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
@@ -715,7 +708,7 @@ class _OfflineNotice extends StatelessWidget {
               style: GoogleFonts.outfit(
                 fontSize: 13,
                 height: 1.45,
-                color: Colors.white.withValues(alpha: 0.9),
+                color: p.text.withValues(alpha: 0.9),
               ),
             ),
           ),
@@ -743,9 +736,9 @@ class _InviteList extends StatelessWidget {
             const SizedBox(height: 24),
             Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.mark_email_unread_rounded,
-                  color: AppTheme.lime,
+                  color: session.palette.accentInk,
                   size: 18,
                 ),
                 const SizedBox(width: 8),
@@ -754,7 +747,7 @@ class _InviteList extends StatelessWidget {
                   style: GoogleFonts.outfit(
                     fontSize: 20,
                     fontWeight: FontWeight.w900,
-                    color: Colors.white,
+                    color: session.palette.text,
                   ),
                 ),
               ],
@@ -765,10 +758,10 @@ class _InviteList extends StatelessWidget {
                 margin: const EdgeInsets.only(bottom: 10),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.05),
+                  color: session.palette.surface,
                   borderRadius: BorderRadius.circular(22),
                   border: Border.all(
-                    color: AppTheme.lime.withValues(alpha: 0.3),
+                    color: session.palette.accent.withValues(alpha: 0.3),
                   ),
                 ),
                 child: Row(
@@ -784,7 +777,7 @@ class _InviteList extends StatelessWidget {
                             style: GoogleFonts.outfit(
                               fontSize: 15.5,
                               fontWeight: FontWeight.w800,
-                              color: Colors.white,
+                              color: session.palette.text,
                             ),
                           ),
                           const SizedBox(height: 2),
@@ -792,7 +785,7 @@ class _InviteList extends StatelessWidget {
                             'Room ${invite.roomCode}',
                             style: GoogleFonts.outfit(
                               fontSize: 13,
-                              color: AppTheme.mist,
+                              color: session.palette.muted,
                             ),
                           ),
                         ],
@@ -800,10 +793,10 @@ class _InviteList extends StatelessWidget {
                     ),
                     IconButton(
                       tooltip: 'Dismiss',
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.close_rounded,
                         size: 20,
-                        color: AppTheme.mist,
+                        color: session.palette.muted,
                       ),
                       onPressed: () =>
                           session.backend.dismissInvite(invite.roomCode),
@@ -811,8 +804,8 @@ class _InviteList extends StatelessWidget {
                     const SizedBox(width: 4),
                     FilledButton(
                       style: FilledButton.styleFrom(
-                        backgroundColor: AppTheme.lime,
-                        foregroundColor: AppTheme.navy950,
+                        backgroundColor: session.palette.accent,
+                        foregroundColor: session.palette.onAccent,
                         padding: const EdgeInsets.symmetric(
                           horizontal: 16,
                           vertical: 10,
@@ -852,6 +845,7 @@ class _HowItWorks extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.watch<AppSession>().palette;
     const steps = [
       'You both type a word in private.',
       'Both words are revealed at the same time.',
@@ -862,19 +856,19 @@ class _HowItWorks extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.04),
+        color: p.surface,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        border: Border.all(color: p.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.help_outline_rounded,
                 size: 18,
-                color: AppTheme.lime,
+                color: p.accentInk,
               ),
               const SizedBox(width: 8),
               Text(
@@ -882,7 +876,7 @@ class _HowItWorks extends StatelessWidget {
                 style: GoogleFonts.outfit(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
-                  color: Colors.white,
+                  color: p.text,
                 ),
               ),
             ],
@@ -899,13 +893,13 @@ class _HowItWorks extends StatelessWidget {
                     height: 22,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: AppTheme.lime.withValues(alpha: 0.15),
+                      color: p.accentSoft,
                       shape: BoxShape.circle,
                     ),
                     child: Text(
                       '${i + 1}',
                       style: GoogleFonts.outfit(
-                        color: AppTheme.lime,
+                        color: p.accentInk,
                         fontWeight: FontWeight.w900,
                         fontSize: 12,
                       ),
@@ -918,7 +912,7 @@ class _HowItWorks extends StatelessWidget {
                       style: GoogleFonts.outfit(
                         fontSize: 13.5,
                         height: 1.45,
-                        color: AppTheme.mist,
+                        color: p.muted,
                       ),
                     ),
                   ),

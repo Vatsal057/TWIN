@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 
 import '../../core/word_utils.dart';
 import '../../models/game_round.dart';
-import '../app_theme.dart';
+import '../../state/app_session.dart';
 
 /// Round history card container matching reference Screenshot 2:
 /// - Rounded card with subtle border and dividers
@@ -22,26 +23,30 @@ class RoundHistory extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.watch<AppSession>().palette;
     if (rounds.isEmpty) {
       return const SizedBox.shrink();
     }
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
+        color: p.surface,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+        border: Border.all(color: p.border),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(24),
         child: Column(
           children: [
-            for (int i = 0; i < rounds.length; i++) ...[
-              if (i > 0)
+            // Newest round first: the latest pair sits at the top,
+            // right under the stickers it produced, and the game
+            // reads back down to round 1.
+            for (int i = rounds.length - 1; i >= 0; i--) ...[
+              if (i < rounds.length - 1)
                 Divider(
                   height: 1,
                   thickness: 1,
-                  color: Colors.white.withValues(alpha: 0.07),
+                  color: p.text.withValues(alpha: 0.07),
                 ),
               _RoundRow(round: rounds[i]),
             ],
@@ -59,6 +64,7 @@ class _RoundRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.watch<AppSession>().palette;
     final matched = round.matched;
 
     return Padding(
@@ -75,7 +81,7 @@ class _RoundRow extends StatelessWidget {
               style: GoogleFonts.outfit(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
-                color: AppTheme.mist,
+                color: p.muted,
               ),
             ),
           ),
@@ -86,7 +92,7 @@ class _RoundRow extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 10),
               decoration: BoxDecoration(
-                color: const Color(0xFF2E3060), // Dark Navy 700
+                color: p.raised,
                 borderRadius: BorderRadius.circular(20),
               ),
               alignment: Alignment.center,
@@ -98,21 +104,21 @@ class _RoundRow extends StatelessWidget {
                   fontSize: 14,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 0.5,
-                  color: matched ? AppTheme.lime : Colors.white,
+                  color: matched ? p.accentInk : p.text,
                 ),
               ),
             ),
           ),
 
           // Slash separator
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Text(
               '/',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: AppTheme.mist,
+                color: p.muted,
               ),
             ),
           ),
@@ -122,7 +128,7 @@ class _RoundRow extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 10),
               decoration: BoxDecoration(
-                color: const Color(0xFF2E3060), // Dark Navy 700
+                color: p.raised,
                 borderRadius: BorderRadius.circular(20),
               ),
               alignment: Alignment.center,
@@ -134,7 +140,7 @@ class _RoundRow extends StatelessWidget {
                   fontSize: 14,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 0.5,
-                  color: matched ? AppTheme.lime : Colors.white,
+                  color: matched ? p.accentInk : p.text,
                 ),
               ),
             ),

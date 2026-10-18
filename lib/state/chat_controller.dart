@@ -58,12 +58,17 @@ class ChatController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> send(String text) async {
+  Future<void> send(String text, {String? kind, String? roomCode}) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;
     _errorMessage = null;
     try {
-      await _backend.sendMessage(conversationId: _conversationId, text: trimmed);
+      await _backend.sendMessage(
+        conversationId: _conversationId,
+        text: trimmed,
+        kind: kind,
+        roomCode: roomCode,
+      );
     } on BackendException catch (e) {
       _errorMessage = e.message;
       notifyListeners();

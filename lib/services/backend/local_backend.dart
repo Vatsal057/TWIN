@@ -51,6 +51,15 @@ class LocalBackend implements GameBackend {
 
   String _displayName;
   String _avatarId;
+
+  /// The username registry for offline practice. The seeded partners
+  /// hold theirs, so a player naming himself Leo still gets @leo.42.
+  final Map<String, String> _usernames = {
+    'leo': 'partner-leo',
+    'zoe': 'partner-zoe',
+    'maya': 'partner-maya',
+    'ivy': 'partner-ivy',
+  };
   String _uid = 'local-player';
 
   final Map<String, Room> _rooms = {};
@@ -155,6 +164,38 @@ class LocalBackend implements GameBackend {
   Stream<List<Room>> watchMyRooms() async* {
     yield _mineRoomsList();
     yield* _myRoomsStream.stream;
+  }
+
+  @override
+  Future<bool> isUsernameAvailable(String username) async {
+    final owner = _usernames[username];
+    return owner == null || owner == _uid;
+  }
+
+  @override
+  Future<bool> claimUsername(String username) async {
+    if (!await isUsernameAvailable(username)) return false;
+    _usernames[username] = _uid;
+    return true;
+  }
+
+  @override
+  Future<void> releaseUsername(String username) async {
+    if (_usernames[username] == _uid) _usernames.remove(username);
+  }
+
+  @override
+  Stream<String?> watchAvatarId(String playerId) {
+    // Locally there is no profile store to read; a player's face is
+    // known from the rooms they sit in (which setAvatarId already
+    // rewrites the moment it changes), plus the local player's own.
+    return watchMyRooms().map((rooms) {
+      for (final room in rooms) {
+        final avatar = room.avatarOf(playerId);
+        if (avatar != null) return avatar;
+      }
+      return playerId == _uid ? _avatarId : null;
+    }).distinct();
   }
 
   void _emitMyRooms() {
@@ -396,10 +437,22 @@ class LocalBackend implements GameBackend {
   Future<void> sendMessage({
     required String conversationId,
     required String text,
+    String? kind,
+    String? roomCode,
   }) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;
-    _appendMessage(conversationId, senderId: _uid, text: trimmed);
+    _appendMessage(
+      conversationId,
+      senderId: _uid,
+      text: trimmed,
+      kind: kind,
+      roomCode: roomCode,
+    );
+    // Special messages (a rematch request, its decline) are cards, not
+    // conversation: the stand-in opponent never answers them with a
+    // canned chat line.
+    if (kind != null) return;
 
     // The other participant in this conversation stands in and replies,
     // like every opponent in the local backend.
@@ -423,6 +476,8 @@ class LocalBackend implements GameBackend {
     String conversationId, {
     required String senderId,
     required String text,
+    String? kind,
+    String? roomCode,
   }) {
     final list = _messages.putIfAbsent(conversationId, () => []);
     list.add(
@@ -431,6 +486,8 @@ class LocalBackend implements GameBackend {
         senderId: senderId,
         text: text,
         sentAt: DateTime.now(),
+        kind: kind,
+        roomCode: roomCode,
       ),
     );
     _messageStreams[conversationId]?.add([...list]);

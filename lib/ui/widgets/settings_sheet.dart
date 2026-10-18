@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../app_theme.dart';
 import '../../core/app_avatars.dart';
+import '../../services/sound_service.dart';
 import '../../state/app_session.dart';
 
 /// Settings & Avatar Customizer Sheet matching React SettingsSheet:
@@ -17,7 +17,7 @@ class SettingsSheet extends StatefulWidget {
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppTheme.navy900,
+      backgroundColor: session.palette.sheet,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
@@ -32,25 +32,62 @@ class SettingsSheet extends StatefulWidget {
 class _SettingsSheetState extends State<SettingsSheet> {
   late final TextEditingController _nameController =
       TextEditingController(text: widget.session.displayName);
+  late final TextEditingController _usernameController =
+      TextEditingController(text: widget.session.username);
   late String _selectedAvatarId = widget.session.profileAvatarId;
+  bool _soundOn = SoundService.instance.enabled;
 
   @override
   void dispose() {
     _nameController.dispose();
+    _usernameController.dispose();
     super.dispose();
   }
 
-  void _save() {
+  Future<void> _save() async {
+    final session = widget.session;
+    // The username is claimed before anything else saves: if it is
+    // malformed or taken, the sheet stays open with the reason shown
+    // and nothing else changes underneath the player.
+    final wanted = _usernameController.text
+        .trim()
+        .toLowerCase()
+        .replaceAll('@', '');
+    if (wanted != session.username) {
+      if (!AppSession.isValidUsername(wanted)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Usernames are 3-20 characters: letters, numbers, dots or underscores.',
+            ),
+          ),
+        );
+        return;
+      }
+      if (!await session.backend.isUsernameAvailable(wanted)) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('That username is taken.')),
+        );
+        return;
+      }
+      await session.claimUsername(
+        wanted,
+        nameForFallback: session.displayName,
+      );
+    }
     final name = _nameController.text.trim();
     if (name.isNotEmpty) {
-      widget.session.setDisplayName(name);
+      session.setDisplayName(name);
     }
-    widget.session.setProfileAvatarId(_selectedAvatarId);
+    session.setProfileAvatarId(_selectedAvatarId);
+    if (!mounted) return;
     Navigator.of(context).pop();
   }
 
   @override
   Widget build(BuildContext context) {
+    final p = widget.session.palette;
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return SafeArea(
@@ -66,7 +103,7 @@ class _SettingsSheetState extends State<SettingsSheet> {
                   width: 38,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
+                    color: p.text.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -84,7 +121,7 @@ class _SettingsSheetState extends State<SettingsSheet> {
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close_rounded, color: AppTheme.mist),
+                    icon: Icon(Icons.close_rounded, color: p.muted),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
@@ -97,28 +134,67 @@ class _SettingsSheetState extends State<SettingsSheet> {
                 style: GoogleFonts.outfit(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: AppTheme.mist,
+                  color: p.muted,
                 ),
               ),
               const SizedBox(height: 10),
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.06),
+                  color: p.text.withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+                  border: Border.all(color: p.border),
                 ),
                 child: TextField(
                   controller: _nameController,
                   maxLength: 18,
-                  style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white),
+                  style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w700, color: p.text),
                   decoration: InputDecoration(
                     hintText: 'You',
-                    hintStyle: GoogleFonts.outfit(color: AppTheme.mist.withValues(alpha: 0.6)),
+                    hintStyle: GoogleFonts.outfit(color: p.muted.withValues(alpha: 0.6)),
                     counterText: '',
                     border: InputBorder.none,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   ),
                 ),
+              ),
+              const SizedBox(height: 24),
+
+              // Your username
+              Text(
+                'Your username',
+                style: GoogleFonts.outfit(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: p.muted,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Container(
+                decoration: BoxDecoration(
+                  color: p.text.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: p.border),
+                ),
+                child: TextField(
+                  controller: _usernameController,
+                  maxLength: 20,
+                  autocorrect: false,
+                  style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w700, color: p.text),
+                  decoration: InputDecoration(
+                    prefixText: '@ ',
+                    prefixStyle: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w700, color: p.muted),
+                    hintText: 'username',
+                    hintStyle: GoogleFonts.outfit(color: p.muted.withValues(alpha: 0.6)),
+                    counterText: '',
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Your unique ID. Friends can find you by it.',
+                style: GoogleFonts.outfit(fontSize: 12, color: p.muted),
               ),
               const SizedBox(height: 24),
 
@@ -128,7 +204,7 @@ class _SettingsSheetState extends State<SettingsSheet> {
                 style: GoogleFonts.outfit(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: AppTheme.mist,
+                  color: p.muted,
                 ),
               ),
               const SizedBox(height: 12),
@@ -147,7 +223,7 @@ class _SettingsSheetState extends State<SettingsSheet> {
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: _selectedAvatarId == id ? AppTheme.lime : Colors.transparent,
+                            color: _selectedAvatarId == id ? p.accent : Colors.transparent,
                             width: 2.5,
                           ),
                         ),
@@ -163,14 +239,50 @@ class _SettingsSheetState extends State<SettingsSheet> {
                     ),
                 ],
               ),
+              const SizedBox(height: 28),
+
+              // Sounds
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Sounds',
+                          style: GoogleFonts.outfit(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: p.text,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Soft clicks and chimes for locks, reveals and chats.',
+                          style: GoogleFonts.outfit(fontSize: 12, color: p.muted),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Switch(
+                    value: _soundOn,
+                    onChanged: (value) {
+                      setState(() => _soundOn = value);
+                      SoundService.instance.setEnabled(value);
+                    },
+                    activeTrackColor: p.accent,
+                    activeThumbColor: p.onAccent,
+                  ),
+                ],
+              ),
               const SizedBox(height: 32),
 
               // Save button
               FilledButton(
                 onPressed: _save,
                 style: FilledButton.styleFrom(
-                  backgroundColor: AppTheme.lime,
-                  foregroundColor: const Color(0xFF151434),
+                  backgroundColor: p.accent,
+                  foregroundColor: p.onAccent,
                   minimumSize: const Size.fromHeight(54),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(27)),
                 ),
@@ -190,12 +302,12 @@ class _SettingsSheetState extends State<SettingsSheet> {
                     widget.session.backend.initialize();
                     Navigator.of(context).pop();
                   },
-                  icon: const Icon(Icons.refresh_rounded, size: 16, color: AppTheme.coral),
+                  icon: Icon(Icons.refresh_rounded, size: 16, color: p.accent2Ink),
                   label: const Text('Reset demo data'),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: AppTheme.coral,
+                    foregroundColor: p.accent2Ink,
                     minimumSize: const Size.fromHeight(54),
-                    side: BorderSide(color: AppTheme.coral.withValues(alpha: 0.35)),
+                    side: BorderSide(color: p.accent2.withValues(alpha: 0.35)),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(27)),
                     textStyle: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w800),
                   ),
@@ -205,7 +317,7 @@ class _SettingsSheetState extends State<SettingsSheet> {
                   "Offline mode: your profile, games and chats live locally in memory. Reset brings back the sample games.",
                   style: GoogleFonts.outfit(
                     fontSize: 12,
-                    color: AppTheme.mist,
+                    color: p.muted,
                     height: 1.45,
                   ),
                 ),

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import '../../core/word_utils.dart';
-import '../app_theme.dart';
+import '../../state/app_session.dart';
 import 'reference_word_sticker.dart';
 
 /// The two words with giant tilted stickers and the organic bead chain bridge,
@@ -20,6 +21,7 @@ class AnchorPair extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.watch<AppSession>().palette;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
@@ -79,7 +81,7 @@ class AnchorPair extends StatelessWidget {
             style: GoogleFonts.outfit(
               fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: AppTheme.mist,
+              color: p.muted,
             ),
           ),
         ],

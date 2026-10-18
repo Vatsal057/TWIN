@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/chat_message.dart';
 import '../models/room.dart';
@@ -16,9 +17,23 @@ import '../services/backend/game_backend.dart';
 /// A message counts as unread when it comes from the other player (system round
 /// cards are not messages) and arrived after the conversation was last read.
 class UnreadTracker extends ChangeNotifier {
-  UnreadTracker(this._backend);
+  UnreadTracker(this._backend, {SharedPreferences? prefs}) : _prefs = prefs {
+    // The read markers live in memory, which a page refresh wipes;
+    // restore the saved ones so seen messages stay seen.
+    final p = _prefs;
+    if (p != null) {
+      for (final key in p.getKeys()) {
+        if (!key.startsWith(_baselinePrefix)) continue;
+        _baseline[key.substring(_baselinePrefix.length)] =
+            p.getInt(key) ?? 0;
+      }
+    }
+  }
+
+  static const _baselinePrefix = 'unread_baseline_';
 
   final GameBackend _backend;
+  final SharedPreferences? _prefs;
   final Map<String, StreamSubscription<List<ChatMessage>>> _subs = {};
   final Map<String, List<ChatMessage>> _messages = {};
   final Map<String, int> _baseline = {};
@@ -84,6 +99,13 @@ class UnreadTracker extends ChangeNotifier {
     final list = _messages[conversationId];
     if (list == null) return;
     final incoming = list.where(_isIncoming).length;
+    if (_openChats.contains(conversationId) &&
+        (_baseline[conversationId] ?? 0) != incoming) {
+      // The chat is on screen: whatever has arrived has been seen,
+      // so the read marker follows the messages as they land.
+      _baseline[conversationId] = incoming;
+      _persistBaseline(conversationId);
+    }
     final base = _baseline[conversationId] ?? 0;
     final next = _openChats.contains(conversationId)
         ? 0
@@ -101,10 +123,18 @@ class UnreadTracker extends ChangeNotifier {
   void markRead(String conversationId) {
     final list = _messages[conversationId];
     _baseline[conversationId] = list?.where(_isIncoming).length ?? 0;
+    _persistBaseline(conversationId);
     if ((_unread[conversationId] ?? 0) != 0) {
       _unread[conversationId] = 0;
       notifyListeners();
     }
+  }
+
+  void _persistBaseline(String conversationId) {
+    _prefs?.setInt(
+      '$_baselinePrefix$conversationId',
+      _baseline[conversationId] ?? 0,
+    );
   }
 
   void setChatOpen(String conversationId, bool open) {

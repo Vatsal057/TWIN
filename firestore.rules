@@ -125,7 +125,12 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read, write: if signedIn() && request.auth.uid == userId;
+      // A profile (name and avatar) is readable by any signed-in player:
+      // the Chats tab and the game screens show the opponent's current
+      // face, read live from here. It is get-only, never list, so the
+      // user base cannot be enumerated, and only the owner can write.
+      allow get: if signedIn();
+      allow write: if signedIn() && request.auth.uid == userId;
 
       match /friends/{friendId} {
         // Each side writes only its own friends list.
@@ -144,6 +149,20 @@ service cloud.firestore {
 
         allow update: if false;
       }
+    }
+
+    // One document per username: the document id IS the handle, so
+    // availability is a single get and the handle list cannot be
+    // enumerated. A player may only claim or change a handle whose
+    // uid is their own, and only release their own.
+    match /usernames/{username} {
+      allow get: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.uid == request.auth.uid;
+      allow update: if signedIn()
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.uid == request.auth.uid;
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
     }
   }
 }

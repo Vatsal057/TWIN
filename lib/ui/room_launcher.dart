@@ -5,9 +5,9 @@ import '../core/game_config.dart';
 import '../models/room.dart';
 import '../services/backend/game_backend.dart';
 import '../services/room_code.dart';
+import '../services/sound_service.dart';
 import '../services/stats_service.dart';
 import '../state/app_session.dart';
-import 'app_theme.dart';
 import 'room_page.dart';
 import 'widgets/settings_sheet.dart';
 
@@ -83,7 +83,7 @@ class RoomLauncher {
     var openSettings = false;
     await showModalBottomSheet<void>(
       context: context,
-      backgroundColor: AppTheme.navy900,
+      backgroundColor: session.palette.sheet,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -99,7 +99,7 @@ class RoomLauncher {
                 style: GoogleFonts.outfit(
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
-                  color: Colors.white,
+                  color: session.palette.text,
                 ),
               ),
               const SizedBox(height: 6),
@@ -109,7 +109,7 @@ class RoomLauncher {
                 'before you start.',
                 style: GoogleFonts.outfit(
                   fontSize: 13.5,
-                  color: AppTheme.mist,
+                  color: session.palette.muted,
                 ),
               ),
               const SizedBox(height: 18),
@@ -125,7 +125,7 @@ class RoomLauncher {
                         'Continue anyway',
                         style: GoogleFonts.outfit(
                           fontWeight: FontWeight.w600,
-                          color: AppTheme.mist,
+                          color: session.palette.muted,
                         ),
                       ),
                     ),
@@ -134,8 +134,8 @@ class RoomLauncher {
                   Expanded(
                     child: FilledButton(
                       style: FilledButton.styleFrom(
-                        backgroundColor: AppTheme.lime,
-                        foregroundColor: AppTheme.navy950,
+                        backgroundColor: session.palette.accent,
+                        foregroundColor: session.palette.onAccent,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
@@ -242,6 +242,7 @@ class RoomLauncher {
       final message = error is BackendException
           ? error.message
           : '$onError\n$error';
+      SoundService.instance.error();
       messenger.showSnackBar(
         SnackBar(content: Text(message), duration: const Duration(seconds: 6)),
       );
@@ -249,6 +250,7 @@ class RoomLauncher {
   }
 
   static void _toast(BuildContext context, String message) {
+    SoundService.instance.error();
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));

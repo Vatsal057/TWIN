@@ -3,9 +3,10 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 
 import '../../core/game_config.dart';
-import '../app_theme.dart';
+import '../../state/app_session.dart';
 import '../layout.dart';
 
 enum _PlayMode { classic, category, customPair }
@@ -27,7 +28,7 @@ class CreateRoomSheet extends StatefulWidget {
     return showModalBottomSheet<GameConfig>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppTheme.navy900,
+      backgroundColor: Provider.of<AppSession>(context, listen: false).palette.sheet,
       constraints: const BoxConstraints(maxWidth: Layout.contentMaxWidth),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
@@ -148,6 +149,7 @@ class _CreateRoomSheetState extends State<CreateRoomSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.watch<AppSession>().palette;
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return SafeArea(
@@ -164,7 +166,7 @@ class _CreateRoomSheetState extends State<CreateRoomSheet> {
                   width: 36,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.25),
+                    color: p.text.withValues(alpha: 0.25),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -180,7 +182,7 @@ class _CreateRoomSheetState extends State<CreateRoomSheet> {
                     style: GoogleFonts.outfit(
                       fontSize: 22,
                       fontWeight: FontWeight.w900,
-                      color: Colors.white,
+                      color: p.text,
                     ),
                   ),
                   InkWell(
@@ -190,10 +192,10 @@ class _CreateRoomSheetState extends State<CreateRoomSheet> {
                       width: 36,
                       height: 36,
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.08),
+                        color: p.text.withValues(alpha: 0.08),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.close_rounded, size: 20, color: Colors.white),
+                      child: Icon(Icons.close_rounded, size: 20, color: p.text),
                     ),
                   ),
                 ],
@@ -207,7 +209,7 @@ class _CreateRoomSheetState extends State<CreateRoomSheet> {
                   fontSize: 11,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 2.0,
-                  color: AppTheme.mist,
+                  color: p.muted,
                 ),
               ),
               const SizedBox(height: 12),
@@ -272,13 +274,13 @@ class _CreateRoomSheetState extends State<CreateRoomSheet> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.05),
+                    color: p.surface,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                    border: Border.all(color: p.border),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.info_outline_rounded, color: AppTheme.lime, size: 20),
+                      Icon(Icons.info_outline_rounded, color: p.accentInk, size: 20),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
@@ -286,7 +288,7 @@ class _CreateRoomSheetState extends State<CreateRoomSheet> {
                           style: GoogleFonts.outfit(
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
-                            color: AppTheme.mist,
+                            color: p.muted,
                             height: 1.35,
                           ),
                         ),
@@ -301,7 +303,7 @@ class _CreateRoomSheetState extends State<CreateRoomSheet> {
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 2.0,
-                    color: AppTheme.mist,
+                    color: p.muted,
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -330,7 +332,7 @@ class _CreateRoomSheetState extends State<CreateRoomSheet> {
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 2.0,
-                        color: AppTheme.mist,
+                        color: p.muted,
                       ),
                     ),
                     InkWell(
@@ -339,21 +341,21 @@ class _CreateRoomSheetState extends State<CreateRoomSheet> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: AppTheme.lime.withValues(alpha: 0.12),
+                          color: p.accentSoft,
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppTheme.lime.withValues(alpha: 0.3)),
+                          border: Border.all(color: p.accent.withValues(alpha: 0.3)),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.shuffle_rounded, size: 13, color: AppTheme.lime),
+                            Icon(Icons.shuffle_rounded, size: 13, color: p.accentInk),
                             const SizedBox(width: 5),
                             Text(
                               'Surprise pair',
                               style: GoogleFonts.outfit(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
-                                color: AppTheme.lime,
+                                color: p.accentInk,
                               ),
                             ),
                           ],
@@ -377,7 +379,7 @@ class _CreateRoomSheetState extends State<CreateRoomSheet> {
                         style: GoogleFonts.outfit(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
-                          color: Colors.white,
+                          color: p.text,
                         ),
                         decoration: InputDecoration(
                           hintText: 'Word A',
@@ -385,10 +387,10 @@ class _CreateRoomSheetState extends State<CreateRoomSheet> {
                           hintStyle: GoogleFonts.outfit(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
-                            color: AppTheme.mist.withValues(alpha: 0.6),
+                            color: p.muted.withValues(alpha: 0.6),
                           ),
                           filled: true,
-                          fillColor: AppTheme.navy950,
+                          fillColor: p.bg,
                           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
@@ -396,7 +398,7 @@ class _CreateRoomSheetState extends State<CreateRoomSheet> {
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
-                            borderSide: BorderSide(color: AppTheme.lime.withValues(alpha: 0.6), width: 1.5),
+                            borderSide: BorderSide(color: p.accent.withValues(alpha: 0.6), width: 1.5),
                           ),
                         ),
                       ),
@@ -407,7 +409,7 @@ class _CreateRoomSheetState extends State<CreateRoomSheet> {
                       style: GoogleFonts.outfit(
                         fontSize: 14,
                         fontWeight: FontWeight.w800,
-                        color: AppTheme.mist,
+                        color: p.muted,
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -423,7 +425,7 @@ class _CreateRoomSheetState extends State<CreateRoomSheet> {
                         style: GoogleFonts.outfit(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
-                          color: Colors.white,
+                          color: p.text,
                         ),
                         decoration: InputDecoration(
                           hintText: 'Word B',
@@ -431,10 +433,10 @@ class _CreateRoomSheetState extends State<CreateRoomSheet> {
                           hintStyle: GoogleFonts.outfit(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
-                            color: AppTheme.mist.withValues(alpha: 0.6),
+                            color: p.muted.withValues(alpha: 0.6),
                           ),
                           filled: true,
-                          fillColor: AppTheme.navy950,
+                          fillColor: p.bg,
                           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
@@ -442,7 +444,7 @@ class _CreateRoomSheetState extends State<CreateRoomSheet> {
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
-                            borderSide: BorderSide(color: AppTheme.coral.withValues(alpha: 0.6), width: 1.5),
+                            borderSide: BorderSide(color: p.accent2.withValues(alpha: 0.6), width: 1.5),
                           ),
                         ),
                       ),
@@ -456,7 +458,7 @@ class _CreateRoomSheetState extends State<CreateRoomSheet> {
                     style: GoogleFonts.outfit(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: AppTheme.coral,
+                      color: p.accent2Ink,
                     ),
                   ),
                 ],
@@ -471,7 +473,7 @@ class _CreateRoomSheetState extends State<CreateRoomSheet> {
                   fontSize: 11,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 2.0,
-                  color: AppTheme.mist,
+                  color: p.muted,
                 ),
               ),
               const SizedBox(height: 10),
@@ -497,8 +499,8 @@ class _CreateRoomSheetState extends State<CreateRoomSheet> {
               FilledButton(
                 onPressed: _submit,
                 style: FilledButton.styleFrom(
-                  backgroundColor: AppTheme.lime,
-                  foregroundColor: AppTheme.navy950,
+                  backgroundColor: p.accent,
+                  foregroundColor: p.onAccent,
                   padding: const EdgeInsets.symmetric(vertical: 18),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),
@@ -508,14 +510,14 @@ class _CreateRoomSheetState extends State<CreateRoomSheet> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.link_rounded, size: 22, color: AppTheme.navy950),
+                    Icon(Icons.link_rounded, size: 22, color: p.onAccent),
                     const SizedBox(width: 8),
                     Text(
                       'Create match & invite friend',
                       style: GoogleFonts.outfit(
                         fontSize: 16.5,
                         fontWeight: FontWeight.w900,
-                        color: AppTheme.navy950,
+                        color: p.onAccent,
                       ),
                     ),
                   ],
@@ -528,7 +530,7 @@ class _CreateRoomSheetState extends State<CreateRoomSheet> {
                 style: GoogleFonts.outfit(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
-                  color: AppTheme.mist.withValues(alpha: 0.8),
+                  color: p.muted.withValues(alpha: 0.8),
                 ),
               ),
             ],
@@ -556,6 +558,7 @@ class _ModeSelectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.watch<AppSession>().palette;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(20),
@@ -563,11 +566,11 @@ class _ModeSelectionCard extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
         decoration: BoxDecoration(
           color: selected
-              ? AppTheme.lime.withValues(alpha: 0.12)
-              : Colors.white.withValues(alpha: 0.05),
+              ? p.accentSoft
+              : p.surface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: selected ? AppTheme.lime : Colors.white.withValues(alpha: 0.10),
+            color: selected ? p.accent : p.border,
             width: selected ? 1.5 : 1,
           ),
         ),
@@ -576,7 +579,7 @@ class _ModeSelectionCard extends StatelessWidget {
             Icon(
               icon,
               size: 22,
-              color: selected ? AppTheme.lime : Colors.white70,
+              color: selected ? p.accentInk : p.muted.withValues(alpha: 0.7),
             ),
             const SizedBox(height: 6),
             Text(
@@ -584,7 +587,7 @@ class _ModeSelectionCard extends StatelessWidget {
               style: GoogleFonts.outfit(
                 fontSize: 13.5,
                 fontWeight: FontWeight.w800,
-                color: selected ? AppTheme.lime : Colors.white,
+                color: selected ? p.accentInk : p.text,
               ),
             ),
             const SizedBox(height: 2),
@@ -593,7 +596,7 @@ class _ModeSelectionCard extends StatelessWidget {
               style: GoogleFonts.outfit(
                 fontSize: 11,
                 fontWeight: FontWeight.w500,
-                color: selected ? AppTheme.lime.withValues(alpha: 0.8) : AppTheme.mist,
+                color: selected ? p.accentInk.withValues(alpha: 0.8) : p.muted,
               ),
             ),
           ],
@@ -616,16 +619,17 @@ class _PillChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.watch<AppSession>().palette;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(20),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: selected ? AppTheme.lime : Colors.white.withValues(alpha: 0.05),
+          color: selected ? p.accent : p.surface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: selected ? AppTheme.lime : Colors.white.withValues(alpha: 0.08),
+            color: selected ? p.accent : p.border,
           ),
         ),
         child: Text(
@@ -633,7 +637,7 @@ class _PillChip extends StatelessWidget {
           style: GoogleFonts.outfit(
             fontSize: 13.5,
             fontWeight: FontWeight.w700,
-            color: selected ? AppTheme.navy950 : AppTheme.mist,
+            color: selected ? p.onAccent : p.muted,
           ),
         ),
       ),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'twin_palette.dart';
+
 /// TWIN Reference Aesthetic — Midnight Navy, Neon Lime, and Punchy Coral.
 /// iOS-style frosted glass surfaces, high-radius capsule curves, and
 /// heavy display typography.
@@ -30,65 +32,73 @@ class AppTheme {
   static const parchment = white;
   static const seed = lime;
 
-  static ThemeData dark() {
+  static ThemeData dark() => fromPalette(TwinPalette.navy);
+
+  /// The Material theme for one palette. Widgets mostly colour
+  /// themselves from the palette directly; this covers the parts
+  /// Material draws (fields, buttons, dialogs, app bars).
+  static ThemeData fromPalette(TwinPalette p) {
     final textTheme = GoogleFonts.outfitTextTheme().apply(
-      bodyColor: white,
-      displayColor: white,
+      bodyColor: p.text,
+      displayColor: p.text,
     );
 
     return ThemeData(
       useMaterial3: true,
-      brightness: Brightness.dark,
-      scaffoldBackgroundColor: navy950,
-      colorScheme: const ColorScheme.dark(
-        surface: navy900,
-        primary: lime,
-        secondary: coral,
-        onSurface: white,
-      ),
+      brightness: p.isDark ? Brightness.dark : Brightness.light,
+      scaffoldBackgroundColor: p.bg,
+      colorScheme:
+          (p.isDark ? const ColorScheme.dark() : const ColorScheme.light())
+              .copyWith(
+                surface: p.sheet,
+                primary: p.accent,
+                onPrimary: p.onAccent,
+                secondary: p.accent2,
+                onSurface: p.text,
+              ),
       textTheme: textTheme,
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: false,
         titleTextStyle: TextStyle(
-          color: white,
+          color: p.text,
           fontSize: 22,
           fontWeight: FontWeight.w900,
         ),
       ),
       cardTheme: CardThemeData(
-        color: navy900,
+        color: p.sheet,
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(24),
-          side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+          side: BorderSide(color: p.border),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: navy800,
-        hintStyle: const TextStyle(color: mist, fontSize: 15),
+        fillColor: p.field,
+        hintStyle: TextStyle(color: p.muted, fontSize: 15),
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(24),
-          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.12)),
+          borderSide: BorderSide(color: p.border),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(24),
-          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.12)),
+          borderSide: BorderSide(color: p.border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(24),
-          borderSide: const BorderSide(color: lime, width: 1.8),
+          borderSide: BorderSide(color: p.accent, width: 1.8),
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           minimumSize: const Size.fromHeight(56),
-          backgroundColor: lime,
-          foregroundColor: navy950,
+          backgroundColor: p.accent,
+          foregroundColor: p.onAccent,
           elevation: 0,
           textStyle: GoogleFonts.outfit(
             fontSize: 17,
@@ -103,8 +113,8 @@ class AppTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           minimumSize: const Size.fromHeight(56),
-          foregroundColor: white,
-          side: BorderSide(color: Colors.white.withValues(alpha: 0.14)),
+          foregroundColor: p.text,
+          side: BorderSide(color: p.text.withValues(alpha: 0.14)),
           textStyle: GoogleFonts.outfit(
             fontSize: 16,
             fontWeight: FontWeight.w800,
@@ -115,7 +125,7 @@ class AppTheme {
         ),
       ),
       dividerTheme: DividerThemeData(
-        color: Colors.white.withValues(alpha: 0.06),
+        color: p.text.withValues(alpha: 0.06),
         space: 1,
         thickness: 1,
       ),

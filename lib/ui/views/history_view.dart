@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import '../../models/friend.dart';
 import '../../models/room.dart';
 import '../../state/app_session.dart';
-import '../app_theme.dart';
 import '../layout.dart';
 import '../room_launcher.dart';
 import '../widgets/character_avatar.dart';
@@ -27,7 +26,7 @@ class HistoryView extends StatelessWidget {
     final session = context.watch<AppSession>();
 
     return Scaffold(
-      backgroundColor: AppTheme.navy950,
+      backgroundColor: session.palette.bg,
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: Text(
@@ -128,6 +127,7 @@ class _WholeTabEmpty extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.watch<AppSession>().palette;
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 40),
@@ -138,13 +138,13 @@ class _WholeTabEmpty extends StatelessWidget {
               width: 72,
               height: 72,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.05),
+                color: p.surface,
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+                border: Border.all(color: p.border),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.sports_esports_rounded,
-                color: AppTheme.lime,
+                color: p.accentInk,
                 size: 30,
               ),
             ),
@@ -154,7 +154,7 @@ class _WholeTabEmpty extends StatelessWidget {
               style: GoogleFonts.outfit(
                 fontSize: 19,
                 fontWeight: FontWeight.w800,
-                color: Colors.white,
+                color: p.text,
               ),
             ),
             const SizedBox(height: 8),
@@ -164,7 +164,7 @@ class _WholeTabEmpty extends StatelessWidget {
               style: GoogleFonts.outfit(
                 fontSize: 13.5,
                 fontWeight: FontWeight.w500,
-                color: AppTheme.mist,
+                color: p.muted,
               ),
             ),
           ],
@@ -185,15 +185,16 @@ class _ActiveGamesSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final session = context.watch<AppSession>();
+    final p = session.palette;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
           children: [
-            const Icon(
+            Icon(
               Icons.sports_esports_rounded,
-              color: AppTheme.lime,
+              color: session.palette.accentInk,
               size: 18,
             ),
             const SizedBox(width: 8),
@@ -202,7 +203,7 @@ class _ActiveGamesSection extends StatelessWidget {
               style: GoogleFonts.outfit(
                 fontSize: 19,
                 fontWeight: FontWeight.w800,
-                color: Colors.white,
+                color: p.text,
               ),
             ),
           ],
@@ -210,9 +211,9 @@ class _ActiveGamesSection extends StatelessWidget {
         const SizedBox(height: 12),
         Container(
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.05),
+            color: p.surface,
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+            border: Border.all(color: p.border),
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(24),
@@ -222,7 +223,7 @@ class _ActiveGamesSection extends StatelessWidget {
                   if (i > 0)
                     Divider(
                       height: 1,
-                      color: Colors.white.withValues(alpha: 0.07),
+                      color: p.border,
                     ),
                   _PastGameRow(
                     name: _opponentName(rooms[i], session.localPlayerId),
@@ -270,20 +271,21 @@ class _FriendsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final session = context.watch<AppSession>();
+    final p = session.palette;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
           children: [
-            const Icon(Icons.people_alt_rounded, color: AppTheme.lime, size: 18),
+            Icon(Icons.people_alt_rounded, color: session.palette.accentInk, size: 18),
             const SizedBox(width: 8),
             Text(
               'Friends',
               style: GoogleFonts.outfit(
                 fontSize: 19,
                 fontWeight: FontWeight.w800,
-                color: Colors.white,
+                color: p.text,
               ),
             ),
           ],
@@ -309,16 +311,16 @@ class _FriendsSection extends StatelessWidget {
               return Container(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.05),
+                  color: p.surface,
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+                  border: Border.all(color: p.border),
                 ),
                 child: Text(
                   'No friends yet — finish a game and the pairing is remembered.',
                   style: GoogleFonts.outfit(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
-                    color: AppTheme.mist,
+                    color: p.muted,
                   ),
                 ),
               );
@@ -352,7 +354,7 @@ class _FriendsSection extends StatelessWidget {
                             style: GoogleFonts.outfit(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: Colors.white,
+                              color: p.text,
                             ),
                           ),
                         ],
@@ -369,26 +371,27 @@ class _FriendsSection extends StatelessWidget {
   }
 
   void _confirmForget(BuildContext context, AppSession session, Friend friend) {
+    final p = session.palette;
     showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppTheme.navy900,
+        backgroundColor: session.palette.sheet,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: BorderSide(color: Colors.white.withValues(alpha: 0.12)),
+          side: BorderSide(color: session.palette.border),
         ),
         title: Text(
           'Remove ${friend.name}?',
           style: GoogleFonts.outfit(
             fontWeight: FontWeight.w800,
-            color: Colors.white,
+            color: p.text,
           ),
         ),
         content: Text(
           'You will need a room code to play together again.',
           style: GoogleFonts.outfit(
             fontSize: 14,
-            color: AppTheme.mist,
+            color: p.muted,
           ),
         ),
         actions: [
@@ -396,12 +399,12 @@ class _FriendsSection extends StatelessWidget {
             onPressed: () => Navigator.of(dialogContext).pop(),
             child: Text(
               'Cancel',
-              style: GoogleFonts.outfit(color: AppTheme.mist),
+              style: GoogleFonts.outfit(color: p.muted),
             ),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
-              backgroundColor: AppTheme.coral,
+              backgroundColor: session.palette.accent2,
               foregroundColor: Colors.white,
             ),
             onPressed: () async {
@@ -434,19 +437,20 @@ class _PastGamesSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.watch<AppSession>().palette;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
           children: [
-            const Icon(Icons.history_rounded, color: AppTheme.lime, size: 18),
+            Icon(Icons.history_rounded, color: p.accentInk, size: 18),
             const SizedBox(width: 8),
             Text(
               'Past games',
               style: GoogleFonts.outfit(
                 fontSize: 19,
                 fontWeight: FontWeight.w800,
-                color: Colors.white,
+                color: p.text,
               ),
             ),
           ],
@@ -456,16 +460,16 @@ class _PastGamesSection extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.05),
+              color: p.surface,
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+              border: Border.all(color: p.border),
             ),
             child: Text(
               'No finished games yet.',
               style: GoogleFonts.outfit(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
-                color: AppTheme.mist,
+                color: p.muted,
               ),
             ),
           )
@@ -502,6 +506,7 @@ class _ScrollablePastGamesState extends State<_ScrollablePastGames> {
   @override
   Widget build(BuildContext context) {
     final session = context.watch<AppSession>();
+    final p = session.palette;
     final rooms = widget.rooms;
     final contentHeight = rooms.length * _rowExtent;
     final scrollable = contentHeight > _maxHeight;
@@ -509,9 +514,9 @@ class _ScrollablePastGamesState extends State<_ScrollablePastGames> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
+        color: p.surface,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+        border: Border.all(color: p.border),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(24),
@@ -528,7 +533,7 @@ class _ScrollablePastGamesState extends State<_ScrollablePastGames> {
                   itemCount: rooms.length,
                   separatorBuilder: (_, __) => Divider(
                     height: 1,
-                    color: Colors.white.withValues(alpha: 0.07),
+                    color: p.border,
                   ),
                   itemBuilder: (context, i) => _PastGameRow(
                     name: _opponentName(rooms[i], session.localPlayerId),
@@ -558,8 +563,8 @@ class _ScrollablePastGamesState extends State<_ScrollablePastGames> {
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
                           colors: [
-                            AppTheme.navy950.withValues(alpha: 0),
-                            AppTheme.navy950.withValues(alpha: 0.85),
+                            session.palette.bg.withValues(alpha: 0),
+                            session.palette.bg.withValues(alpha: 0.85),
                           ],
                         ),
                       ),
@@ -620,6 +625,7 @@ class _PastGameRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.watch<AppSession>().palette;
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -637,7 +643,7 @@ class _PastGameRow extends StatelessWidget {
                     style: GoogleFonts.outfit(
                       fontSize: 16,
                       fontWeight: FontWeight.w800,
-                      color: Colors.white,
+                      color: p.text,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -646,7 +652,7 @@ class _PastGameRow extends StatelessWidget {
                     style: GoogleFonts.outfit(
                       fontSize: 13,
                       fontWeight: converged ? FontWeight.w700 : FontWeight.w500,
-                      color: converged ? AppTheme.lime : AppTheme.mist,
+                      color: converged ? p.accentInk : p.muted,
                     ),
                   ),
                 ],
@@ -657,13 +663,13 @@ class _PastGameRow extends StatelessWidget {
               style: GoogleFonts.outfit(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: AppTheme.mist,
+                color: p.muted,
               ),
             ),
             const SizedBox(width: 8),
-            const Icon(
+            Icon(
               Icons.chevron_right_rounded,
-              color: AppTheme.mist,
+              color: p.muted,
               size: 18,
             ),
           ],

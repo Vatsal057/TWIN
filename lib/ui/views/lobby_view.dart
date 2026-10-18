@@ -5,16 +5,23 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/game_config.dart';
+import '../../models/friend.dart';
 import '../../services/deep_link_service.dart';
 import '../../state/app_session.dart';
 import '../../state/game_controller.dart';
-import '../app_theme.dart';
 import '../widgets/bouncy_tap.dart';
+import '../widgets/character_avatar.dart';
+import 'chat_room_view.dart';
 
 /// Waiting room: shows the room code once, one share-invite action,
 /// category badges, and the waiting pulse indicator.
 class LobbyView extends StatefulWidget {
-  const LobbyView({super.key});
+  const LobbyView({super.key, this.onCloseRoom});
+
+  /// The close (X) action: the destructive exit, owned by the room
+  /// page, which confirms and closes the room. Backing out any other
+  /// way simply leaves the room waiting.
+  final VoidCallback? onCloseRoom;
 
   @override
   State<LobbyView> createState() => _LobbyViewState();
@@ -48,21 +55,121 @@ class _LobbyViewState extends State<LobbyView> {
     );
   }
 
+  /// Friend picker for "Send code in chat": opens the pair's chat with
+  /// the invite text waiting in the composer, the room still open
+  /// underneath. Sending stays the player's own tap.
+  void _showFriendPicker({
+    required AppSession session,
+    required List<Friend> friends,
+    required String code,
+    required GameConfig? config,
+  }) {
+    HapticFeedback.lightImpact();
+    final room = context.read<GameController>().room;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: session.palette.sheet,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: session.palette.text.withValues(alpha: 0.25),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                'Send the code to',
+                style: GoogleFonts.outfit(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: session.palette.text,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 14),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (final friend in friends)
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: StreamBuilder<String?>(
+                            stream: session.backend.watchAvatarId(friend.id),
+                            builder: (context, avatarSnap) => CharacterAvatar(
+                              name: friend.name,
+                              size: 44,
+                              avatarId: avatarSnap.data,
+                            ),
+                          ),
+                          title: Text(
+                            friend.name,
+                            style: GoogleFonts.outfit(
+                              fontSize: 15.5,
+                              fontWeight: FontWeight.w700,
+                              color: session.palette.text,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          onTap: () {
+                            Navigator.of(sheetContext).pop();
+                            ChatRoomView.open(
+                              context,
+                              roomCode: code,
+                              opponentId: friend.id,
+                              opponentName: friend.name,
+                              room: room,
+                              insideRoom: true,
+                              initialDraft: DeepLinkService.shareMessage(
+                                code,
+                                fromName: session.displayName,
+                                config: config,
+                              ),
+                            );
+                          },
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final game = context.watch<GameController>();
-    final session = context.read<AppSession>();
+    final session = context.watch<AppSession>();
     final code = game.roomCode;
     final config = game.room?.config;
 
     return Scaffold(
-      backgroundColor: AppTheme.navy950,
+      backgroundColor: session.palette.bg,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.close_rounded, color: Colors.white),
-          onPressed: () => Navigator.of(context).maybePop(),
+          icon: Icon(Icons.close_rounded, color: session.palette.text),
+          onPressed:
+              widget.onCloseRoom ?? () => Navigator.of(context).maybePop(),
         ),
       ),
       body: SafeArea(
@@ -77,11 +184,11 @@ class _LobbyViewState extends State<LobbyView> {
                   width: 76,
                   height: 76,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.05),
+                    color: session.palette.surface,
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                    border: Border.all(color: session.palette.border),
                   ),
-                  child: const Icon(Icons.person_add_rounded, color: AppTheme.lime, size: 36),
+                  child: Icon(Icons.person_add_rounded, color: session.palette.accentInk, size: 36),
                 ),
                 const SizedBox(height: 20),
 
@@ -90,7 +197,7 @@ class _LobbyViewState extends State<LobbyView> {
                   style: GoogleFonts.outfit(
                     fontSize: 26,
                     fontWeight: FontWeight.w900,
-                    color: Colors.white,
+                    color: session.palette.text,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -102,7 +209,7 @@ class _LobbyViewState extends State<LobbyView> {
                     textAlign: TextAlign.center,
                     style: GoogleFonts.outfit(
                       fontSize: 14,
-                      color: AppTheme.mist,
+                      color: session.palette.muted,
                       height: 1.5,
                     ),
                   ),
@@ -115,16 +222,16 @@ class _LobbyViewState extends State<LobbyView> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       decoration: BoxDecoration(
-                        color: AppTheme.lime.withValues(alpha: 0.12),
+                        color: session.palette.accentSoft,
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: AppTheme.lime.withValues(alpha: 0.3)),
+                        border: Border.all(color: session.palette.accent.withValues(alpha: 0.3)),
                       ),
                       child: Text(
                         'Starting pair: ${config.startWordA} · ${config.startWordB}',
                         style: GoogleFonts.outfit(
                           fontSize: 13.5,
                           fontWeight: FontWeight.w700,
-                          color: AppTheme.lime,
+                          color: session.palette.accentInk,
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -134,16 +241,16 @@ class _LobbyViewState extends State<LobbyView> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       decoration: BoxDecoration(
-                        color: AppTheme.coral.withValues(alpha: 0.12),
+                        color: session.palette.accent2Soft,
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: AppTheme.coral.withValues(alpha: 0.3)),
+                        border: Border.all(color: session.palette.accent2.withValues(alpha: 0.3)),
                       ),
                       child: Text(
                         'Category: ${config.theme}',
                         style: GoogleFonts.outfit(
                           fontSize: 13.5,
                           fontWeight: FontWeight.w700,
-                          color: AppTheme.coral,
+                          color: session.palette.accent2Ink,
                         ),
                       ),
                     ),
@@ -158,9 +265,9 @@ class _LobbyViewState extends State<LobbyView> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.06),
+                      color: session.palette.surface,
                       borderRadius: BorderRadius.circular(32),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+                      border: Border.all(color: session.palette.border),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -171,11 +278,11 @@ class _LobbyViewState extends State<LobbyView> {
                             fontSize: 30,
                             fontWeight: FontWeight.w900,
                             letterSpacing: 6,
-                            color: Colors.white,
+                            color: session.palette.text,
                           ),
                         ),
                         const SizedBox(width: 12),
-                        const Icon(Icons.copy_rounded, color: AppTheme.mist, size: 20),
+                        Icon(Icons.copy_rounded, color: session.palette.muted, size: 20),
                       ],
                     ),
                   ),
@@ -190,7 +297,7 @@ class _LobbyViewState extends State<LobbyView> {
                     style: GoogleFonts.outfit(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w700,
-                      color: AppTheme.lime,
+                      color: session.palette.accentInk,
                     ),
                   ),
                 ),
@@ -206,12 +313,59 @@ class _LobbyViewState extends State<LobbyView> {
                     style: GoogleFonts.outfit(fontWeight: FontWeight.w800, fontSize: 15),
                   ),
                   style: FilledButton.styleFrom(
-                    backgroundColor: AppTheme.lime,
-                    foregroundColor: AppTheme.navy950,
+                    backgroundColor: session.palette.accent,
+                    foregroundColor: session.palette.onAccent,
                     minimumSize: const Size.fromHeight(52),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
                   ),
+                ),
+
+                // Or send the invite inside an existing TWIN chat: opens
+                // the pair's conversation with the invite text waiting
+                // in the composer. Only offered once there is a friend
+                // to send it to. The room stays open underneath either
+                // way; nothing here leaves or closes it.
+                StreamBuilder<List<Friend>>(
+                  stream: session.friends,
+                  builder: (context, friendsSnap) {
+                    final friends = friendsSnap.data ?? const <Friend>[];
+                    if (friends.isEmpty) return const SizedBox.shrink();
+                    return Column(
+                      children: [
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          onPressed: () => _showFriendPicker(
+                            session: session,
+                            friends: friends,
+                            code: code,
+                            config: config,
+                          ),
+                          icon: const Icon(
+                            Icons.chat_bubble_outline_rounded,
+                            size: 18,
+                          ),
+                          label: Text(
+                            'Send code in chat',
+                            style: GoogleFonts.outfit(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: session.palette.text,
+                            minimumSize: const Size.fromHeight(52),
+                            side: BorderSide(
+                              color: session.palette.text.withValues(alpha: 0.12),
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(22),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
 
                 const SizedBox(height: 28),
@@ -225,9 +379,9 @@ class _LobbyViewState extends State<LobbyView> {
                 OutlinedButton(
                   onPressed: () => Navigator.of(context).maybePop(),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
+                    foregroundColor: session.palette.text,
                     minimumSize: const Size.fromHeight(52),
-                    side: BorderSide(color: Colors.white.withValues(alpha: 0.12)),
+                    side: BorderSide(color: session.palette.text.withValues(alpha: 0.12)),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
                   ),
                   child: Text(
@@ -290,7 +444,7 @@ class _WaitingIndicatorState extends State<_WaitingIndicator>
             fontSize: 13.5,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.3,
-            color: AppTheme.mist,
+            color: context.watch<AppSession>().palette.muted,
           ),
         ),
       ],
@@ -312,7 +466,7 @@ class _PulseDot extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 4),
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: AppTheme.lime.withValues(alpha: 0.25 + wave * 0.75),
+        color: context.watch<AppSession>().palette.accent.withValues(alpha: 0.25 + wave * 0.75),
       ),
     );
   }

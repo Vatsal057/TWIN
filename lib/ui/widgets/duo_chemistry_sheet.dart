@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 
 import '../../core/word_utils.dart';
 import '../../models/friend.dart';
 import '../../models/room.dart';
 import '../../state/app_session.dart';
-import '../app_theme.dart';
 import '../layout.dart';
 import '../room_launcher.dart';
 import 'character_avatar.dart';
@@ -31,7 +31,7 @@ class DuoChemistrySheet extends StatelessWidget {
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppTheme.navy900,
+      backgroundColor: session.palette.sheet,
       constraints: const BoxConstraints(maxWidth: Layout.contentMaxWidth),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -42,6 +42,7 @@ class DuoChemistrySheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = session.palette;
     final avg = friend.averageRounds;
     final avgStr = avg != null ? avg.toStringAsFixed(1) : '—';
     final bestStr = friend.bestSyncRounds != null
@@ -61,7 +62,7 @@ class DuoChemistrySheet extends StatelessWidget {
                   width: 38,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
+                    color: p.text.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -80,7 +81,7 @@ class DuoChemistrySheet extends StatelessWidget {
                           style: GoogleFonts.outfit(
                             fontSize: 20,
                             fontWeight: FontWeight.w800,
-                            color: Colors.white,
+                            color: p.text,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -89,7 +90,7 @@ class DuoChemistrySheet extends StatelessWidget {
                           style: GoogleFonts.outfit(
                             fontSize: 12.5,
                             fontWeight: FontWeight.w600,
-                            color: AppTheme.lime,
+                            color: p.accentInk,
                           ),
                         ),
                       ],
@@ -134,7 +135,7 @@ class DuoChemistrySheet extends StatelessWidget {
                   fontSize: 12,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.5,
-                  color: AppTheme.mist,
+                  color: p.muted,
                 ),
               ),
               const SizedBox(height: 6),
@@ -142,7 +143,7 @@ class DuoChemistrySheet extends StatelessWidget {
                 'Words you and ${friend.name} converged on together.',
                 style: GoogleFonts.outfit(
                   fontSize: 12,
-                  color: AppTheme.mist,
+                  color: p.muted,
                 ),
               ),
               const SizedBox(height: 14),
@@ -151,10 +152,10 @@ class DuoChemistrySheet extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 24),
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: AppTheme.navy950,
+                    color: p.bg,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.08),
+                      color: p.border,
                     ),
                   ),
                   child: Text(
@@ -163,7 +164,7 @@ class DuoChemistrySheet extends StatelessWidget {
                     style: GoogleFonts.outfit(
                       fontSize: 13,
                       height: 1.5,
-                      color: AppTheme.mist,
+                      color: p.muted,
                     ),
                   ),
                 )
@@ -179,19 +180,19 @@ class DuoChemistrySheet extends StatelessWidget {
                           vertical: 8,
                         ),
                         decoration: BoxDecoration(
-                          color: AppTheme.navy950,
+                          color: p.bg,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: AppTheme.lime.withValues(alpha: 0.35),
+                            color: p.accent.withValues(alpha: 0.35),
                           ),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(
+                            Icon(
                               Icons.all_inclusive_rounded,
                               size: 14,
-                              color: AppTheme.lime,
+                              color: p.accentInk,
                             ),
                             const SizedBox(width: 6),
                             Text(
@@ -199,7 +200,7 @@ class DuoChemistrySheet extends StatelessWidget {
                               style: GoogleFonts.outfit(
                                 fontSize: 13.5,
                                 fontWeight: FontWeight.w700,
-                                color: Colors.white,
+                                color: p.text,
                               ),
                             ),
                           ],
@@ -214,7 +215,7 @@ class DuoChemistrySheet extends StatelessWidget {
                   fontSize: 12,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.5,
-                  color: AppTheme.mist,
+                  color: p.muted,
                 ),
               ),
               const SizedBox(height: 6),
@@ -222,7 +223,7 @@ class DuoChemistrySheet extends StatelessWidget {
                 'Matches you and ${friend.name} played together.',
                 style: GoogleFonts.outfit(
                   fontSize: 12,
-                  color: AppTheme.mist,
+                  color: p.muted,
                 ),
               ),
               const SizedBox(height: 14),
@@ -243,17 +244,17 @@ class DuoChemistrySheet extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(vertical: 18),
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color: AppTheme.navy950,
+                        color: p.bg,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.08),
+                          color: p.border,
                         ),
                       ),
                       child: Text(
                         'No finished games with ${friend.name} yet.',
                         style: GoogleFonts.outfit(
                           fontSize: 13,
-                          color: AppTheme.mist,
+                          color: p.muted,
                         ),
                       ),
                     );
@@ -261,10 +262,10 @@ class DuoChemistrySheet extends StatelessWidget {
 
                   return Container(
                     decoration: BoxDecoration(
-                      color: AppTheme.navy950,
+                      color: p.bg,
                       borderRadius: BorderRadius.circular(18),
                       border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.08),
+                        color: p.border,
                       ),
                     ),
                     child: ClipRRect(
@@ -275,7 +276,7 @@ class DuoChemistrySheet extends StatelessWidget {
                             if (i > 0)
                               Divider(
                                 height: 1,
-                                color: Colors.white.withValues(alpha: 0.07),
+                                color: p.text.withValues(alpha: 0.07),
                               ),
                             InkWell(
                               onTap: () {
@@ -295,9 +296,9 @@ class DuoChemistrySheet extends StatelessWidget {
                                       decoration: BoxDecoration(
                                         color: games[i].finishReason ==
                                                 FinishReason.converged
-                                            ? AppTheme.lime
+                                            ? p.accent
                                                 .withValues(alpha: 0.15)
-                                            : Colors.white
+                                            : p.text
                                                 .withValues(alpha: 0.08),
                                         shape: BoxShape.circle,
                                       ),
@@ -310,8 +311,8 @@ class DuoChemistrySheet extends StatelessWidget {
                                         size: 18,
                                         color: games[i].finishReason ==
                                                 FinishReason.converged
-                                            ? AppTheme.lime
-                                            : AppTheme.mist,
+                                            ? p.accentInk
+                                            : p.muted,
                                       ),
                                     ),
                                     const SizedBox(width: 12),
@@ -331,7 +332,7 @@ class DuoChemistrySheet extends StatelessWidget {
                                             style: GoogleFonts.outfit(
                                               fontSize: 14.5,
                                               fontWeight: FontWeight.w700,
-                                              color: Colors.white,
+                                              color: p.text,
                                             ),
                                           ),
                                           const SizedBox(height: 2),
@@ -339,15 +340,15 @@ class DuoChemistrySheet extends StatelessWidget {
                                             '${games[i].rounds.length} ${games[i].rounds.length == 1 ? "round" : "rounds"} · Room ${games[i].code}',
                                             style: GoogleFonts.outfit(
                                               fontSize: 12,
-                                              color: AppTheme.mist,
+                                              color: p.muted,
                                             ),
                                           ),
                                         ],
                                       ),
                                     ),
-                                    const Icon(
+                                    Icon(
                                       Icons.chevron_right_rounded,
-                                      color: AppTheme.mist,
+                                      color: p.muted,
                                       size: 18,
                                     ),
                                   ],
@@ -383,8 +384,8 @@ class DuoChemistrySheet extends StatelessWidget {
                   ),
                 ),
                 style: FilledButton.styleFrom(
-                  backgroundColor: AppTheme.lime,
-                  foregroundColor: AppTheme.navy950,
+                  backgroundColor: p.accent,
+                  foregroundColor: p.onAccent,
                   minimumSize: const Size.fromHeight(50),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(25),
@@ -412,13 +413,14 @@ class _MetricCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.watch<AppSession>().palette;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
       decoration: BoxDecoration(
-        color: AppTheme.navy950,
+        color: p.bg,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: Colors.white.withValues(alpha: 0.08),
+          color: p.border,
         ),
       ),
       child: Column(
@@ -430,7 +432,7 @@ class _MetricCard extends StatelessWidget {
               fontSize: 10,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.8,
-              color: AppTheme.mist,
+              color: p.muted,
             ),
           ),
           const SizedBox(height: 6),
@@ -439,7 +441,7 @@ class _MetricCard extends StatelessWidget {
             style: GoogleFonts.outfit(
               fontSize: 16,
               fontWeight: FontWeight.w800,
-              color: Colors.white,
+              color: p.text,
             ),
           ),
           if (detail != null) ...[
@@ -451,7 +453,7 @@ class _MetricCard extends StatelessWidget {
               style: GoogleFonts.outfit(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
-                color: AppTheme.lime,
+                color: p.accentInk,
               ),
             ),
           ],

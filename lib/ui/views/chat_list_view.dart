@@ -3,11 +3,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/word_utils.dart';
+import '../../models/chat_message.dart';
 import '../../models/game_invite.dart';
 import '../../models/room.dart';
 import '../../services/backend/game_backend.dart';
 import '../../state/app_session.dart';
-import '../app_theme.dart';
 import '../layout.dart';
 import '../room_launcher.dart';
 import '../widgets/bouncy_tap.dart';
@@ -37,7 +37,7 @@ class ChatListView extends StatelessWidget {
             final unreadTotal = session.unread.totalUnread;
 
             return Scaffold(
-              backgroundColor: AppTheme.navy950,
+              backgroundColor: session.palette.bg,
               appBar: AppBar(
                 automaticallyImplyLeading: false,
                 title: Text(
@@ -54,10 +54,11 @@ class ChatListView extends StatelessWidget {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.08),
+                      color: session.palette.text.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(16),
-                      border:
-                          Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                      border: Border.all(
+                        color: session.palette.text.withValues(alpha: 0.1),
+                      ),
                     ),
                     child: Text(
                       unreadTotal > 0 ? '$unreadTotal unread' : 'All caught up',
@@ -65,8 +66,8 @@ class ChatListView extends StatelessWidget {
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                         color: unreadTotal > 0
-                            ? AppTheme.lime
-                            : AppTheme.mist,
+                            ? session.palette.accentInk
+                            : session.palette.muted,
                       ),
                     ),
                   ),
@@ -84,7 +85,7 @@ class ChatListView extends StatelessWidget {
                             fontSize: 12,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 1.5,
-                            color: AppTheme.mist,
+                            color: session.palette.muted,
                           ),
                         ),
                         const SizedBox(height: 10),
@@ -110,7 +111,7 @@ class ChatListView extends StatelessWidget {
                           fontSize: 12,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 1.5,
-                          color: AppTheme.mist,
+                          color: session.palette.muted,
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -188,22 +189,21 @@ class _ConversationsList extends StatelessWidget {
               return Container(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
                 decoration: BoxDecoration(
-                  color: AppTheme.navy900,
+                  color: session.palette.sheet,
                   borderRadius: BorderRadius.circular(22),
-                  border:
-                      Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                  border: Border.all(color: session.palette.border),
                 ),
                 child: Column(
                   children: [
-                    const Icon(Icons.chat_bubble_outline_rounded,
-                        color: AppTheme.mist, size: 26),
+                    Icon(Icons.chat_bubble_outline_rounded,
+                        color: session.palette.muted, size: 26),
                     const SizedBox(height: 10),
                     Text(
                       'No chats yet',
                       style: GoogleFonts.outfit(
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
-                        color: Colors.white,
+                        color: session.palette.text,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -212,7 +212,7 @@ class _ConversationsList extends StatelessWidget {
                       style: GoogleFonts.outfit(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
-                        color: AppTheme.mist,
+                        color: session.palette.muted,
                       ),
                     ),
                   ],
@@ -224,31 +224,39 @@ class _ConversationsList extends StatelessWidget {
               children: [
                 for (var i = 0; i < repRooms.length; i++) ...[
                   if (i > 0) const SizedBox(height: 10),
-                  _FriendChatTile(
-                    name: _opponentName(repRooms[i], session.localPlayerId),
-                    avatarId: repRooms[i].avatarOf(
-                      repRooms[i].opponentOf(session.localPlayerId),
-                    ),
-                    preview: _previewFor(session, repRooms[i]),
-                    timestamp: _timestampFor(session, repRooms[i]),
-                    unreadCount:
-                        unreadByOpponent[repRooms[i].opponentOf(
-                          session.localPlayerId,
-                        )] ??
-                        0,
-                    onTap: () {
-                      final oppId = repRooms[i].opponentOf(
-                        session.localPlayerId,
-                      );
-                      if (oppId == null) return;
-                      session.unread.markRead(conversationOf(repRooms[i]));
-                      ChatRoomView.open(
-                        context,
-                        roomCode: repRooms[i].code,
-                        opponentId: oppId,
-                        opponentName:
-                            _opponentName(repRooms[i], session.localPlayerId),
-                        room: repRooms[i],
+                  // The face follows the friend's profile live, so an
+                  // avatar change shows here at once; the room's copy
+                  // is the fallback while the profile loads.
+                  StreamBuilder<String?>(
+                    stream:
+                        repRooms[i].opponentOf(session.localPlayerId) == null
+                        ? null
+                        : session.backend.watchAvatarId(
+                            repRooms[i].opponentOf(session.localPlayerId)!,
+                          ),
+                    builder: (context, avatarSnap) {
+                      final room = repRooms[i];
+                      final oppId = room.opponentOf(session.localPlayerId);
+                      return _FriendChatTile(
+                        name: _opponentName(room, session.localPlayerId),
+                        avatarId: avatarSnap.data ?? room.avatarOf(oppId),
+                        preview: _previewFor(session, room),
+                        timestamp: _timestampFor(session, room),
+                        unreadCount: unreadByOpponent[oppId] ?? 0,
+                        onTap: () {
+                          if (oppId == null) return;
+                          session.unread.markRead(conversationOf(room));
+                          ChatRoomView.open(
+                            context,
+                            roomCode: room.code,
+                            opponentId: oppId,
+                            opponentName: _opponentName(
+                              room,
+                              session.localPlayerId,
+                            ),
+                            room: room,
+                          );
+                        },
                       );
                     },
                   ),
@@ -289,6 +297,10 @@ String _previewFor(AppSession session, Room room) {
   final who = last.senderId == session.localPlayerId
       ? 'You'
       : _opponentName(room, session.localPlayerId);
+  if (last.kind == ChatMessage.kindRematch) return '$who: wants a rematch';
+  if (last.kind == ChatMessage.kindRematchDeclined) {
+    return '$who: declined the rematch';
+  }
   return '$who: ${last.text}';
 }
 
@@ -318,14 +330,15 @@ class _InviteCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.watch<AppSession>().palette;
     return BouncyTap(
       onTap: onAccept,
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppTheme.navy900,
+          color: p.sheet,
           borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: AppTheme.lime.withValues(alpha: 0.3)),
+          border: Border.all(color: p.accent.withValues(alpha: 0.3)),
         ),
         child: Row(
           children: [
@@ -343,11 +356,11 @@ class _InviteCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 2),
-                  const Text(
+                  Text(
                     'Invited you to twin!',
                     style: TextStyle(
                       fontSize: 13,
-                      color: AppTheme.lime,
+                      color: p.accentInk,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -357,7 +370,7 @@ class _InviteCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
-                color: AppTheme.lime,
+                color: p.accent,
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Text(
@@ -365,7 +378,7 @@ class _InviteCard extends StatelessWidget {
                 style: GoogleFonts.outfit(
                   fontSize: 13,
                   fontWeight: FontWeight.w900,
-                  color: AppTheme.navy950,
+                  color: p.onAccent,
                 ),
               ),
             ),
@@ -395,14 +408,15 @@ class _FriendChatTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.watch<AppSession>().palette;
     return BouncyTap(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: AppTheme.navy900,
+          color: p.sheet,
           borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+          border: Border.all(color: p.border),
         ),
         child: Row(
           children: [
@@ -433,9 +447,9 @@ class _FriendChatTile extends StatelessWidget {
                       const SizedBox(width: 8),
                       Text(
                         timestamp,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
-                          color: AppTheme.mist,
+                          color: p.muted,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -446,7 +460,7 @@ class _FriendChatTile extends StatelessWidget {
                     preview,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 13.5, color: AppTheme.mist),
+                    style: TextStyle(fontSize: 13.5, color: p.muted),
                   ),
                 ],
               ),
@@ -456,7 +470,7 @@ class _FriendChatTile extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: AppTheme.coral,
+                  color: p.accent2,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
@@ -469,9 +483,9 @@ class _FriendChatTile extends StatelessWidget {
                 ),
               )
             else
-              const Icon(
+              Icon(
                 Icons.chevron_right_rounded,
-                color: AppTheme.mist,
+                color: p.muted,
                 size: 20,
               ),
           ],

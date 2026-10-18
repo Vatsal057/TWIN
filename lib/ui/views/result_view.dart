@@ -395,11 +395,31 @@ class _ScrollableRounds extends StatefulWidget {
 
 class _ScrollableRoundsState extends State<_ScrollableRounds> {
   final ScrollController _controller = ScrollController();
+  bool _atEnd = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(_onScroll);
+  }
 
   @override
   void dispose() {
+    _controller.removeListener(_onScroll);
     _controller.dispose();
     super.dispose();
+  }
+
+  /// The bottom fade means "more below". Once the list reaches its
+  /// end there is nothing more, so the fade lifts instead of shading
+  /// the final (matched) row.
+  void _onScroll() {
+    if (!_controller.hasClients) return;
+    final position = _controller.position;
+    final atEnd =
+        position.maxScrollExtent <= 0 ||
+        position.pixels >= position.maxScrollExtent - 1;
+    if (atEnd != _atEnd) setState(() => _atEnd = atEnd);
   }
 
   @override
@@ -431,7 +451,7 @@ class _ScrollableRoundsState extends State<_ScrollableRounds> {
               },
             ),
           ),
-          if (scrollable)
+          if (scrollable && !_atEnd)
             Positioned(
               left: 0,
               right: 0,

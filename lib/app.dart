@@ -9,6 +9,7 @@ import 'ui/app_theme.dart';
 import 'ui/boot_screen.dart';
 import 'ui/home_screen.dart';
 import 'ui/room_launcher.dart';
+import 'ui/views/onboarding_view.dart';
 
 class TwinApp extends StatefulWidget {
   const TwinApp({super.key});
@@ -43,14 +44,19 @@ class _TwinAppState extends State<TwinApp> {
 
   void _onSessionChanged() {
     final queued = _queuedCode;
-    if (queued != null && _session.status == SessionStatus.ready) {
+    if (queued != null &&
+        _session.status == SessionStatus.ready &&
+        _session.onboardingDone) {
       _queuedCode = null;
       _handleCode(queued);
     }
   }
 
   void _handleCode(String code) {
-    if (_session.status != SessionStatus.ready) {
+    // An invite link waits until the player is in: a brand-new player
+    // finishes onboarding (name, face, player ID) first, and only then
+    // does the room open. Queued codes fire from _onSessionChanged.
+    if (_session.status != SessionStatus.ready || !_session.onboardingDone) {
       _queuedCode = code;
       return;
     }
@@ -78,12 +84,15 @@ class _TwinAppState extends State<TwinApp> {
         ChangeNotifierProvider<AppSession>.value(value: _session),
         Provider<DeepLinkService>.value(value: _deepLinks),
       ],
-      child: MaterialApp(
-        title: 'TWIN',
-        debugShowCheckedModeBanner: false,
-        navigatorKey: _navigatorKey,
-        theme: AppTheme.dark(),
-        home: const _SessionGate(),
+      child: ListenableBuilder(
+        listenable: _session,
+        builder: (context, _) => MaterialApp(
+          title: 'TWIN',
+          debugShowCheckedModeBanner: false,
+          navigatorKey: _navigatorKey,
+          theme: AppTheme.fromPalette(_session.palette),
+          home: const _SessionGate(),
+        ),
       ),
     );
   }
@@ -102,7 +111,8 @@ class _SessionGate extends StatelessWidget {
         error: session.errorMessage,
         onRetry: session.initialize,
       ),
-      SessionStatus.ready => const HomeScreen(),
+      SessionStatus.ready =>
+        session.onboardingDone ? const HomeScreen() : const OnboardingView(),
     };
   }
 }

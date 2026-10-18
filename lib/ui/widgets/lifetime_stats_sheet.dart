@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 
 import '../../core/word_utils.dart';
 import '../../services/stats_service.dart';
-import '../app_theme.dart';
+import '../../state/app_session.dart';
 import '../layout.dart';
 
 /// Modal bottom sheet displaying personal lifetime stats and frequent bridge words.
@@ -19,7 +20,7 @@ class LifetimeStatsSheet extends StatelessWidget {
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppTheme.navy900,
+      backgroundColor: Provider.of<AppSession>(context, listen: false).palette.sheet,
       constraints: const BoxConstraints(maxWidth: Layout.contentMaxWidth),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -30,6 +31,7 @@ class LifetimeStatsSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.watch<AppSession>().palette;
     final winPercent = stats.totalGamesPlayed > 0
         ? '${(stats.convergenceRate * 100).round()}%'
         : '—';
@@ -53,7 +55,7 @@ class LifetimeStatsSheet extends StatelessWidget {
                   width: 38,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
+                    color: p.text.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -64,12 +66,12 @@ class LifetimeStatsSheet extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: AppTheme.lime.withValues(alpha: 0.15),
+                      color: p.accent.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.insights_rounded,
-                      color: AppTheme.lime,
+                      color: p.accentInk,
                       size: 24,
                     ),
                   ),
@@ -83,7 +85,7 @@ class LifetimeStatsSheet extends StatelessWidget {
                           style: GoogleFonts.outfit(
                             fontSize: 19,
                             fontWeight: FontWeight.w800,
-                            color: Colors.white,
+                            color: p.text,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -92,7 +94,7 @@ class LifetimeStatsSheet extends StatelessWidget {
                           style: GoogleFonts.outfit(
                             fontSize: 12.5,
                             fontWeight: FontWeight.w600,
-                            color: AppTheme.lime,
+                            color: p.accentInk,
                           ),
                         ),
                       ],
@@ -135,7 +137,7 @@ class LifetimeStatsSheet extends StatelessWidget {
                   fontSize: 12,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.5,
-                  color: AppTheme.mist,
+                  color: p.muted,
                 ),
               ),
               const SizedBox(height: 6),
@@ -143,7 +145,7 @@ class LifetimeStatsSheet extends StatelessWidget {
                 'Your go-to conceptual bridges across all rounds played.',
                 style: GoogleFonts.outfit(
                   fontSize: 12,
-                  color: AppTheme.mist,
+                  color: p.muted,
                 ),
               ),
               const SizedBox(height: 14),
@@ -152,10 +154,10 @@ class LifetimeStatsSheet extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 24),
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: AppTheme.navy950,
+                    color: p.bg,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.08),
+                      color: p.border,
                     ),
                   ),
                   child: Text(
@@ -164,7 +166,7 @@ class LifetimeStatsSheet extends StatelessWidget {
                     style: GoogleFonts.outfit(
                       fontSize: 13,
                       height: 1.5,
-                      color: AppTheme.mist,
+                      color: p.muted,
                     ),
                   ),
                 )
@@ -180,10 +182,10 @@ class LifetimeStatsSheet extends StatelessWidget {
                           vertical: 8,
                         ),
                         decoration: BoxDecoration(
-                          color: AppTheme.navy950,
+                          color: p.bg,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: AppTheme.lime.withValues(alpha: 0.35),
+                            color: p.accent.withValues(alpha: 0.35),
                           ),
                         ),
                         child: Row(
@@ -194,7 +196,7 @@ class LifetimeStatsSheet extends StatelessWidget {
                               style: GoogleFonts.outfit(
                                 fontSize: 13.5,
                                 fontWeight: FontWeight.w700,
-                                color: Colors.white,
+                                color: p.text,
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -204,7 +206,7 @@ class LifetimeStatsSheet extends StatelessWidget {
                                 vertical: 2,
                               ),
                               decoration: BoxDecoration(
-                                color: AppTheme.lime.withValues(alpha: 0.20),
+                                color: p.accent.withValues(alpha: 0.20),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Text(
@@ -212,7 +214,7 @@ class LifetimeStatsSheet extends StatelessWidget {
                                 style: GoogleFonts.outfit(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w800,
-                                  color: AppTheme.lime,
+                                  color: p.accentInk,
                                 ),
                               ),
                             ),
@@ -242,13 +244,14 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.watch<AppSession>().palette;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
       decoration: BoxDecoration(
-        color: AppTheme.navy950,
+        color: p.bg,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: Colors.white.withValues(alpha: 0.08),
+          color: p.border,
         ),
       ),
       child: Column(
@@ -260,7 +263,7 @@ class _StatCard extends StatelessWidget {
               fontSize: 10,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.8,
-              color: AppTheme.mist,
+              color: p.muted,
             ),
           ),
           const SizedBox(height: 6),
@@ -269,7 +272,7 @@ class _StatCard extends StatelessWidget {
             style: GoogleFonts.outfit(
               fontSize: 16,
               fontWeight: FontWeight.w800,
-              color: Colors.white,
+              color: p.text,
             ),
           ),
           if (detail != null) ...[
@@ -281,7 +284,7 @@ class _StatCard extends StatelessWidget {
               style: GoogleFonts.outfit(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
-                color: AppTheme.lime,
+                color: p.accentInk,
               ),
             ),
           ],

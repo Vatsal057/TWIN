@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../app_theme.dart';
+import 'package:provider/provider.dart';
+import '../../state/app_session.dart';
 import 'character_avatar.dart';
 
 /// Top Player Slots matching reference Screenshot 2:
@@ -37,6 +38,7 @@ class ReferenceRoundHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.watch<AppSession>().palette;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Row(
@@ -62,7 +64,7 @@ class ReferenceRoundHeader extends StatelessWidget {
                   style: GoogleFonts.outfit(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
-                    color: Colors.white,
+                    color: p.text,
                   ),
                 ),
               ),
@@ -71,14 +73,14 @@ class ReferenceRoundHeader extends StatelessWidget {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.lock_rounded, size: 12, color: AppTheme.mist),
+                    Icon(Icons.lock_rounded, size: 12, color: p.muted),
                     const SizedBox(width: 4),
                     Text(
                       'Locked',
                       style: GoogleFonts.outfit(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: AppTheme.mist,
+                        color: p.muted,
                       ),
                     ),
                   ],
@@ -90,8 +92,8 @@ class ReferenceRoundHeader extends StatelessWidget {
                     Container(
                       width: 6,
                       height: 6,
-                      decoration: const BoxDecoration(
-                        color: AppTheme.lime,
+                      decoration: BoxDecoration(
+                        color: p.accent,
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -101,7 +103,7 @@ class ReferenceRoundHeader extends StatelessWidget {
                       style: GoogleFonts.outfit(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
-                        color: AppTheme.lime,
+                        color: p.accentInk,
                       ),
                     ),
                   ],
@@ -125,19 +127,19 @@ class ReferenceRoundHeader extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   text: TextSpan(
-                    style: GoogleFonts.outfit(fontSize: 16, color: Colors.white),
+                    style: GoogleFonts.outfit(fontSize: 16, color: p.text),
                     children: [
                       TextSpan(
                         text: opponentName,
                         style: const TextStyle(fontWeight: FontWeight.w800),
                       ),
                       if (opponentSubmitted)
-                        const TextSpan(
+                        TextSpan(
                           text: ' · locked in',
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            color: AppTheme.mist,
+                            color: p.muted,
                           ),
                         ),
                     ],
@@ -149,14 +151,14 @@ class ReferenceRoundHeader extends StatelessWidget {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.lock_rounded, size: 12, color: AppTheme.mist),
+                    Icon(Icons.lock_rounded, size: 12, color: p.muted),
                     const SizedBox(width: 4),
                     Text(
                       'Locked',
                       style: GoogleFonts.outfit(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: AppTheme.mist,
+                        color: p.muted,
                       ),
                     ),
                   ],
@@ -172,7 +174,7 @@ class ReferenceRoundHeader extends StatelessWidget {
                       style: GoogleFonts.outfit(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: AppTheme.mist,
+                        color: p.muted,
                       ),
                     ),
                   ],
@@ -218,7 +220,7 @@ class _ThreeWaitingDotsState extends State<_ThreeWaitingDots>
               width: 4,
               height: 4,
               decoration: BoxDecoration(
-                color: AppTheme.mist.withValues(alpha: alpha),
+                color: context.watch<AppSession>().palette.muted.withValues(alpha: alpha),
                 shape: BoxShape.circle,
               ),
             );

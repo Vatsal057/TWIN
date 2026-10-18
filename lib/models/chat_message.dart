@@ -13,6 +13,8 @@ class ChatMessage {
     this.wordA,
     this.wordB,
     this.matched,
+    this.kind,
+    this.roomCode,
   });
 
   final String id;
@@ -30,6 +32,16 @@ class ChatMessage {
   final String? wordB;
   final bool? matched;
 
+  /// Special message kinds, rendered as cards instead of text bubbles.
+  /// [kindRematch] is a rematch request carrying the new room's code in
+  /// [roomCode]; [kindRematchDeclined] is the reply that turns it down.
+  /// Null means an ordinary message.
+  static const kindRematch = 'rematch';
+  static const kindRematchDeclined = 'rematch-declined';
+
+  final String? kind;
+  final String? roomCode;
+
   Map<String, Object?> toMap() => {
     'senderId': senderId,
     'text': text,
@@ -38,6 +50,8 @@ class ChatMessage {
     if (wordA != null) 'wordA': wordA,
     if (wordB != null) 'wordB': wordB,
     if (matched != null) 'matched': matched,
+    if (kind != null) 'kind': kind,
+    if (roomCode != null) 'roomCode': roomCode,
     if (sentAt != null) 'sentAt': sentAt!.toIso8601String(),
   };
 
@@ -61,6 +75,8 @@ class ChatMessage {
       wordA: map['wordA'] as String?,
       wordB: map['wordB'] as String?,
       matched: map['matched'] as bool?,
+      kind: map['kind'] as String?,
+      roomCode: map['roomCode'] as String?,
     );
   }
 }

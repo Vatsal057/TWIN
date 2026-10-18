@@ -34,6 +34,10 @@ class FirestoreBackend implements GameBackend {
   String _avatarId;
   String _uid = '';
 
+  /// One shared profile listener per watched player, so a screen full
+  /// of chat tiles does not open a listener each.
+  final Map<String, Stream<String?>> _avatarStreams = {};
+
   @override
   String get localPlayerId => _uid;
 
@@ -160,6 +164,57 @@ class FirestoreBackend implements GameBackend {
     // codes are shared out of band, never browsed). Instead the current
     // name and avatar ride along on the writes play already makes:
     // room create, join and rejoin, and every word submission.
+  }
+
+  @override
+  Future<bool> isUsernameAvailable(String username) async {
+    if (_uid.isEmpty) return true;
+    final snap = await _db.collection('usernames').doc(username).get();
+    if (!snap.exists) return true;
+    return snap.data()?['uid'] == _uid;
+  }
+
+  @override
+  Future<bool> claimUsername(String username) async {
+    if (_uid.isEmpty) return false;
+    final ref = _db.collection('usernames').doc(username);
+    final claimed = await _db.runTransaction<bool>((tx) async {
+      final snap = await tx.get(ref);
+      if (snap.exists && snap.data()?['uid'] != _uid) return false;
+      tx.set(ref, {'uid': _uid});
+      return true;
+    });
+    if (claimed) {
+      await _db.collection('users').doc(_uid).set({
+        'username': username,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    }
+    return claimed;
+  }
+
+  @override
+  Future<void> releaseUsername(String username) async {
+    if (_uid.isEmpty) return;
+    final ref = _db.collection('usernames').doc(username);
+    final snap = await ref.get();
+    if (snap.exists && snap.data()?['uid'] == _uid) {
+      await ref.delete();
+    }
+  }
+
+  @override
+  Stream<String?> watchAvatarId(String playerId) {
+    return _avatarStreams.putIfAbsent(
+      playerId,
+      () => _db
+          .collection('users')
+          .doc(playerId)
+          .snapshots()
+          .map((snap) => snap.data()?['avatarId'] as String?)
+          .distinct()
+          .asBroadcastStream(),
+    );
   }
 
   // ---------------------------------------------------------------- rooms
@@ -557,6 +612,8 @@ class FirestoreBackend implements GameBackend {
   Future<void> sendMessage({
     required String conversationId,
     required String text,
+    String? kind,
+    String? roomCode,
   }) async {
     _requireAuth();
     final trimmed = text.trim();
@@ -567,6 +624,8 @@ class FirestoreBackend implements GameBackend {
         'text': trimmed.length > 500 ? trimmed.substring(0, 500) : trimmed,
         'sentAt': FieldValue.serverTimestamp(),
         'clientSentAt': Timestamp.now(),
+        if (kind != null) 'kind': kind,
+        if (roomCode != null) 'roomCode': roomCode,
       }),
       'Message did not send.',
     );
