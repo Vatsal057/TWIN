@@ -67,6 +67,19 @@ class CharacterAvatar extends StatelessWidget {
                 width: size,
                 height: size,
                 fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  width: size,
+                  height: size,
+                  decoration: BoxDecoration(
+                    color: infoFor(name).color,
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    infoFor(name).emoji,
+                    style: TextStyle(fontSize: size * 0.52, height: 1.1),
+                  ),
+                ),
               ),
             )
           else

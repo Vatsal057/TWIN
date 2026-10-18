@@ -36,6 +36,12 @@ class AppSession extends ChangeNotifier {
   String _displayName = 'Player';
   String _profileEmoji = '🙂';
   String _profileAvatarId = AppAvatars.fallback;
+
+  /// Whether the player has ever confirmed a name / picked an avatar.
+  /// Until both are true, the create and join flows suggest setting the
+  /// profile up first.
+  bool _hasPlayerName = false;
+  bool _hasPlayerAvatar = false;
   String _loadingStep = 'Starting up';
 
   /// Set when Firebase could not be initialised and we fell back to offline
@@ -55,6 +61,10 @@ class AppSession extends ChangeNotifier {
 
   /// ID of the illustrated avatar chosen in Settings ('a1'..'a8').
   String get profileAvatarId => _profileAvatarId;
+
+  bool get hasPlayerName => _hasPlayerName;
+  bool get hasPlayerAvatar => _hasPlayerAvatar;
+  bool get profileIsSetUp => _hasPlayerName && _hasPlayerAvatar;
 
   String get loadingStep => _loadingStep;
   String get localPlayerId => _backend?.localPlayerId ?? '';
@@ -90,6 +100,11 @@ class AppSession extends ChangeNotifier {
       if (!AppAvatars.isValid(_profileAvatarId)) {
         _profileAvatarId = AppAvatars.fallback;
       }
+      _hasPlayerName = prefs.containsKey(_nameKey);
+      // The legacy emoji pick counts as an avatar choice too: those
+      // players picked a face, it was mapped across above.
+      _hasPlayerAvatar =
+          prefs.containsKey(_avatarKey) || prefs.containsKey(_emojiKey);
 
       _setStep('Connecting');
       _backend = await _createBackend();
@@ -120,6 +135,9 @@ class AppSession extends ChangeNotifier {
   @visibleForTesting
   Future<void> initializeWith(GameBackend backend) async {
     _backend = backend;
+    // Test sessions are built around a deliberate profile.
+    _hasPlayerName = true;
+    _hasPlayerAvatar = true;
     await backend.initialize();
     await backend.setDisplayName(_displayName);
     await backend.setAvatarId(_profileAvatarId);
@@ -158,8 +176,10 @@ class AppSession extends ChangeNotifier {
 
   Future<void> setDisplayName(String name) async {
     final trimmed = name.trim();
-    if (trimmed.isEmpty || trimmed == _displayName) return;
+    if (trimmed.isEmpty) return;
+    if (trimmed == _displayName && _hasPlayerName) return;
     _displayName = trimmed;
+    _hasPlayerName = true;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_nameKey, trimmed);
     await _backend?.setDisplayName(trimmed);
@@ -175,8 +195,10 @@ class AppSession extends ChangeNotifier {
   }
 
   Future<void> setProfileAvatarId(String id) async {
-    if (!AppAvatars.isValid(id) || id == _profileAvatarId) return;
+    if (!AppAvatars.isValid(id)) return;
+    if (id == _profileAvatarId && _hasPlayerAvatar) return;
     _profileAvatarId = id;
+    _hasPlayerAvatar = true;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_avatarKey, id);
     // Publish it so the other player's screen shows the new face too.

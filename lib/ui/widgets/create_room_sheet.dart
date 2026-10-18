@@ -368,6 +368,12 @@ class _CreateRoomSheetState extends State<CreateRoomSheet> {
                     Expanded(
                       child: TextField(
                         controller: _wordAController,
+                        maxLength: 32,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(
+                            RegExp(r"[A-Za-z0-9'\- ]"),
+                          ),
+                        ],
                         style: GoogleFonts.outfit(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
@@ -375,6 +381,7 @@ class _CreateRoomSheetState extends State<CreateRoomSheet> {
                         ),
                         decoration: InputDecoration(
                           hintText: 'Word A',
+                          counterText: '',
                           hintStyle: GoogleFonts.outfit(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
@@ -407,6 +414,12 @@ class _CreateRoomSheetState extends State<CreateRoomSheet> {
                     Expanded(
                       child: TextField(
                         controller: _wordBController,
+                        maxLength: 32,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(
+                            RegExp(r"[A-Za-z0-9'\- ]"),
+                          ),
+                        ],
                         style: GoogleFonts.outfit(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
@@ -414,6 +427,7 @@ class _CreateRoomSheetState extends State<CreateRoomSheet> {
                         ),
                         decoration: InputDecoration(
                           hintText: 'Word B',
+                          counterText: '',
                           hintStyle: GoogleFonts.outfit(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,

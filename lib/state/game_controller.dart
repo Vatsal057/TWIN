@@ -53,6 +53,7 @@ class GameController extends ChangeNotifier {
   bool _submitting = false;
   bool _pairingRemembered = false;
   bool _gameCompletionRecorded = false;
+  bool _firstSnapshotSeen = false;
 
   /// Round currently being shown in the reveal overlay.
   GameRound? _revealing;
@@ -155,6 +156,19 @@ class GameController extends ChangeNotifier {
   void _onRoom(Room room) {
     final previous = _room;
     _room = room;
+
+    if (!_firstSnapshotSeen) {
+      // A room opened from History arrives already finished, with its
+      // rounds in place. Seed the counters from that first snapshot so
+      // opening it neither replays the reveal nor records the old game
+      // as newly played.
+      _firstSnapshotSeen = true;
+      _seenRoundCount = room.rounds.length;
+      if (room.isFinished) {
+        _gameCompletionRecorded = true;
+        _pairingRemembered = true;
+      }
+    }
 
     if (room.rounds.length > _seenRoundCount) {
       _beginReveal(room.rounds.last);
@@ -272,6 +286,8 @@ class GameController extends ChangeNotifier {
         )
         .catchError((Object error) {
           debugPrint('commitRound failed: $error');
+          _errorMessage = 'Could not save that round. Check your connection.';
+          notifyListeners();
         })
         .whenComplete(() {
           _committing = false;
@@ -377,7 +393,7 @@ class GameController extends ChangeNotifier {
 
   Future<void> leave() async {
     final current = _room;
-    if (!_gameCompletionRecorded && current != null) {
+    if (!_gameCompletionRecorded && current != null && current.isFull) {
       _gameCompletionRecorded = true;
       final other = current.opponentOf(localPlayerId);
       if (other != null) {

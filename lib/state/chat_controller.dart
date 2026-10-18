@@ -5,15 +5,16 @@ import 'package:flutter/foundation.dart';
 import '../models/chat_message.dart';
 import '../services/backend/game_backend.dart';
 
-/// Room-scoped chat. Plain text only — no receipts, no typing indicators, no
-/// media. Lives as long as the room does.
+/// Chat for one player pair's conversation. Plain text only — no receipts,
+/// no typing indicators, no media. The conversation is shared by every
+/// game between the pair, so it outlives any single room.
 class ChatController extends ChangeNotifier {
-  ChatController({required GameBackend backend, required String roomCode})
+  ChatController({required GameBackend backend, required String conversationId})
     : _backend = backend,
-      _roomCode = roomCode;
+      _conversationId = conversationId;
 
   final GameBackend _backend;
-  final String _roomCode;
+  final String _conversationId;
 
   StreamSubscription<List<ChatMessage>>? _sub;
 
@@ -35,7 +36,7 @@ class ChatController extends ChangeNotifier {
 
   void start() {
     _sub = _backend
-        .watchMessages(_roomCode)
+        .watchMessages(_conversationId)
         .listen(
           (messages) {
             _messages = messages;
@@ -62,7 +63,7 @@ class ChatController extends ChangeNotifier {
     if (trimmed.isEmpty) return;
     _errorMessage = null;
     try {
-      await _backend.sendMessage(code: _roomCode, text: trimmed);
+      await _backend.sendMessage(conversationId: _conversationId, text: trimmed);
     } on BackendException catch (e) {
       _errorMessage = e.message;
       notifyListeners();

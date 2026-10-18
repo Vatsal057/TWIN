@@ -2,18 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../state/app_session.dart';
-import '../state/chat_controller.dart';
 import '../state/game_controller.dart';
 import 'app_theme.dart';
 import 'views/game_view.dart';
 import 'views/lobby_view.dart';
 import 'views/result_view.dart';
 
-/// Owns the room's controllers for the whole lifetime of the session, and swaps
-/// between lobby, game and result as the shared room document advances.
+/// Owns the room's game controller for the whole lifetime of the session, and
+/// swaps between lobby, game and result as the shared room document advances.
 ///
-/// One listener, one lifecycle: the chat stream and the round history survive
-/// the transitions instead of being torn down between screens.
+/// One listener, one lifecycle: the round history survives the transitions
+/// instead of being torn down between screens. Chat lives outside the room
+/// now (one conversation per pair of players), so it is not owned here.
 class RoomPage extends StatefulWidget {
   const RoomPage({super.key, required this.roomCode});
 
@@ -25,7 +25,6 @@ class RoomPage extends StatefulWidget {
 
 class _RoomPageState extends State<RoomPage> {
   late final GameController _game;
-  late final ChatController _chat;
 
   @override
   void initState() {
@@ -36,14 +35,11 @@ class _RoomPageState extends State<RoomPage> {
       engine: session.engine,
       roomCode: widget.roomCode,
     )..start();
-    _chat = ChatController(backend: session.backend, roomCode: widget.roomCode)
-      ..start();
   }
 
   @override
   void dispose() {
     _game.dispose();
-    _chat.dispose();
     super.dispose();
   }
 
@@ -56,9 +52,11 @@ class _RoomPageState extends State<RoomPage> {
       builder: (dialogContext) => AlertDialog(
         backgroundColor: AppTheme.inkCard,
         title: const Text('Leave this game?'),
-        content: const Text(
-          'The round in progress ends and your opponent is told the game was '
-          'abandoned.',
+        content: Text(
+          room.isFull
+              ? 'The round in progress ends and your opponent is told the '
+                    'game was abandoned.'
+              : 'This room will be closed, and the code will stop working.',
         ),
         actions: [
           TextButton(
@@ -82,10 +80,7 @@ class _RoomPageState extends State<RoomPage> {
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
-      providers: [
-        ChangeNotifierProvider<GameController>.value(value: _game),
-        ChangeNotifierProvider<ChatController>.value(value: _chat),
-      ],
+      providers: [ChangeNotifierProvider<GameController>.value(value: _game)],
       child: Consumer<GameController>(
         builder: (context, game, _) {
           return PopScope(

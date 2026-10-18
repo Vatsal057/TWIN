@@ -6,9 +6,11 @@ import 'package:provider/provider.dart';
 import '../../core/word_utils.dart';
 import '../../models/chat_message.dart';
 import '../../models/room.dart';
+import '../../services/backend/game_backend.dart';
 import '../../services/deep_link_service.dart';
 import '../../state/app_session.dart';
 import '../../state/chat_controller.dart';
+import '../../state/unread_tracker.dart';
 import '../app_theme.dart';
 import '../room_launcher.dart';
 import '../widgets/character_avatar.dart';
@@ -26,17 +28,23 @@ class ChatRoomView extends StatefulWidget {
   const ChatRoomView({
     super.key,
     required this.roomCode,
+    required this.opponentId,
     required this.opponentName,
     this.room,
   });
 
+  /// The room this chat was opened from. Used for the game actions in the
+  /// options sheet (join, share invite); the messages themselves belong
+  /// to the pair conversation with [opponentId], not to this room.
   final String roomCode;
+  final String opponentId;
   final String opponentName;
   final Room? room;
 
   static Future<void> open(
     BuildContext context, {
     required String roomCode,
+    required String opponentId,
     required String opponentName,
     Room? room,
   }) {
@@ -44,6 +52,7 @@ class ChatRoomView extends StatefulWidget {
       MaterialPageRoute(
         builder: (_) => ChatRoomView(
           roomCode: roomCode,
+          opponentId: opponentId,
           opponentName: opponentName,
           room: room,
         ),
@@ -57,6 +66,8 @@ class ChatRoomView extends StatefulWidget {
 
 class _ChatRoomViewState extends State<ChatRoomView> {
   late final ChatController _chat;
+  late final String _conversationId;
+  late final UnreadTracker _unread;
   final _textController = TextEditingController();
   final _scrollController = ScrollController();
   final _focusNode = FocusNode();
@@ -65,14 +76,21 @@ class _ChatRoomViewState extends State<ChatRoomView> {
   void initState() {
     super.initState();
     final session = context.read<AppSession>();
+    _conversationId = pairConversationId(
+      session.localPlayerId,
+      widget.opponentId,
+    );
     _chat = ChatController(
       backend: session.backend,
-      roomCode: widget.roomCode,
+      conversationId: _conversationId,
     )..start();
+    _unread = session.unread;
+    _unread.setChatOpen(_conversationId, true);
   }
 
   @override
   void dispose() {
+    _unread.setChatOpen(_conversationId, false);
     _chat.dispose();
     _textController.dispose();
     _scrollController.dispose();
@@ -244,15 +262,6 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 1),
-                        Text(
-                          'Online',
-                          style: GoogleFonts.outfit(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: AppTheme.mist,
-                          ),
-                        ),
                       ],
                     ),
                   ),
@@ -289,7 +298,7 @@ class _ChatRoomViewState extends State<ChatRoomView> {
                             child: Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 32),
                               child: Text(
-                                'Say something. Messages stay in this room.',
+                                'Say something. Messages stay between you two.',
                                 textAlign: TextAlign.center,
                                 style: GoogleFonts.outfit(
                                   fontSize: 14,

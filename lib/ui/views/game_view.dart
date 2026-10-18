@@ -3,8 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../models/room.dart';
+import '../../services/backend/game_backend.dart';
 import '../../state/app_session.dart';
-import '../../state/chat_controller.dart';
 import '../../state/game_controller.dart';
 import '../app_theme.dart';
 import '../widgets/anchor_pair.dart';
@@ -166,8 +166,11 @@ class _GameHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final chat = context.watch<ChatController?>();
-    final unread = chat?.unreadCount ?? 0;
+    final session = context.watch<AppSession>();
+    final opponentId = room.opponentOf(game.localPlayerId);
+    final conversationId = opponentId == null
+        ? null
+        : pairConversationId(game.localPlayerId, opponentId);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 10, 20, 4),
@@ -218,9 +221,12 @@ class _GameHeader extends StatelessWidget {
           // Chat button with red badge
           InkWell(
             onTap: () {
+              final opp = opponentId;
+              if (opp == null) return;
               ChatRoomView.open(
                 context,
                 roomCode: game.roomCode,
+                opponentId: opp,
                 opponentName: game.opponentName,
                 room: room,
               );
@@ -239,8 +245,14 @@ class _GameHeader extends StatelessWidget {
                   ),
                   child: const Icon(Icons.chat_bubble_outline_rounded, color: Colors.white, size: 20),
                 ),
-                if (unread > 0)
-                  Positioned(
+                ListenableBuilder(
+                  listenable: session.unread,
+                  builder: (context, _) {
+                    final unread = conversationId == null
+                        ? 0
+                        : session.unread.unreadFor(conversationId);
+                    if (unread == 0) return const SizedBox.shrink();
+                    return Positioned(
                     top: -3,
                     right: -3,
                     child: Container(
@@ -261,7 +273,9 @@ class _GameHeader extends StatelessWidget {
                         textAlign: TextAlign.center,
                       ),
                     ),
-                  ),
+                    );
+                  },
+                ),
               ],
             ),
           ),

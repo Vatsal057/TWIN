@@ -58,8 +58,15 @@ class FirestoreBackend implements GameBackend {
   CollectionReference<Map<String, dynamic>> _submissions(String code) =>
       _room(code).collection('submissions');
 
-  CollectionReference<Map<String, dynamic>> _messages(String code) =>
-      _room(code).collection('messages');
+  /// Chat lives in one conversation per player pair (see
+  /// [pairConversationId]), not under a room, so the thread outlives
+  /// any single game.
+  CollectionReference<Map<String, dynamic>> _messages(
+    String conversationId,
+  ) => _db
+      .collection('conversations')
+      .doc(conversationId)
+      .collection('messages');
 
   CollectionReference<Map<String, dynamic>> get _friends =>
       _db.collection('users').doc(_uid).collection('friends');
@@ -514,8 +521,8 @@ class FirestoreBackend implements GameBackend {
   // ----------------------------------------------------------------- chat
 
   @override
-  Stream<List<ChatMessage>> watchMessages(String code) {
-    return _messages(code).orderBy('clientSentAt').limit(500).snapshots().map((snap) {
+  Stream<List<ChatMessage>> watchMessages(String conversationId) {
+    return _messages(conversationId).orderBy('clientSentAt').limit(500).snapshots().map((snap) {
       final messages = snap.docs.map((doc) {
         final data = doc.data();
         return ChatMessage(
@@ -524,6 +531,11 @@ class FirestoreBackend implements GameBackend {
           text: (data['text'] as String?) ?? '',
           sentAt: _toDate(data['sentAt']) ?? _toDate(data['clientSentAt']),
           pending: doc.metadata.hasPendingWrites,
+          system: data['system'] == true,
+          round: (data['round'] as num?)?.toInt(),
+          wordA: data['wordA'] as String?,
+          wordB: data['wordB'] as String?,
+          matched: data['matched'] as bool?,
         );
       }).toList();
 
@@ -542,12 +554,15 @@ class FirestoreBackend implements GameBackend {
   }
 
   @override
-  Future<void> sendMessage({required String code, required String text}) async {
+  Future<void> sendMessage({
+    required String conversationId,
+    required String text,
+  }) async {
     _requireAuth();
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;
     await _guard(
-      () => _messages(code).add({
+      () => _messages(conversationId).add({
         'senderId': _uid,
         'text': trimmed.length > 500 ? trimmed.substring(0, 500) : trimmed,
         'sentAt': FieldValue.serverTimestamp(),
@@ -590,7 +605,6 @@ class FirestoreBackend implements GameBackend {
       'friendId': friendId,
       'name': friendName,
       'lastPlayedAt': FieldValue.serverTimestamp(),
-      'gamesPlayed': FieldValue.increment(1),
     }, SetOptions(merge: true));
   }
 

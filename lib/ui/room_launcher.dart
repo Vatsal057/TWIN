@@ -9,17 +9,31 @@ import '../services/stats_service.dart';
 import '../state/app_session.dart';
 import 'app_theme.dart';
 import 'room_page.dart';
+import 'widgets/settings_sheet.dart';
 
 /// Create/join plumbing shared by the home screen, the friends list and
 /// incoming deep links, so all three enter a room the same way.
 class RoomLauncher {
   RoomLauncher._();
 
+  /// Guards against a double-tap firing create/join twice while one
+  /// launch action is still running. Held only for the action itself,
+  /// never for the room page's lifetime: the rematch flow pops the old
+  /// page and launches the new room in the same tap.
+  static bool _launching = false;
+
+  /// Room code whose page is currently open via [open], so a double-tap
+  /// on a History row cannot stack two pages for the same room.
+  static String? _openCode;
+
   static Future<void> createAndOpen(
     BuildContext context,
     AppSession session, {
     GameConfig config = GameConfig.defaults,
   }) async {
+    final proceed = await _ensureProfile(context, session);
+    if (!proceed || !context.mounted) return;
+
     await _run(
       context,
       () => session.backend.createRoom(config: config),
@@ -39,8 +53,8 @@ class RoomLauncher {
       return;
     }
 
-    await _ensureDisplayName(context, session);
-    if (!context.mounted) return;
+    final proceed = await _ensureProfile(context, session);
+    if (!proceed || !context.mounted) return;
 
     await _run(
       context,
@@ -49,34 +63,39 @@ class RoomLauncher {
     );
   }
 
-  static Future<void> _ensureDisplayName(
+  /// Every create and join lands here first. A player who has never set
+  /// a name or picked an avatar is suggested to set the profile up before
+  /// the game starts, because that name and face are what their friend
+  /// sees. It is a suggestion, not a wall: "Continue anyway" proceeds
+  /// with the defaults, and dismissing the sheet cancels the launch.
+  /// Returns true when the launch should go ahead.
+  static Future<bool> _ensureProfile(
     BuildContext context,
     AppSession session,
   ) async {
-    if (session.displayName != 'Player') return;
+    if (session.profileIsSetUp) return true;
 
-    final controller = TextEditingController();
+    final missing = <String>[
+      if (!session.hasPlayerName) 'a name',
+      if (!session.hasPlayerAvatar) 'an avatar',
+    ];
+    var proceed = false;
+    var openSettings = false;
     await showModalBottomSheet<void>(
       context: context,
-      isScrollControlled: true,
       backgroundColor: AppTheme.navy900,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (sheetContext) {
         return Padding(
-          padding: EdgeInsets.only(
-            left: 24,
-            right: 24,
-            top: 24,
-            bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 24,
-          ),
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Join TWIN Challenge',
+                'Set up your profile first?',
                 style: GoogleFonts.outfit(
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
@@ -85,40 +104,25 @@ class RoomLauncher {
               ),
               const SizedBox(height: 6),
               Text(
-                'What should your friend call you?',
+                'You have not picked ${missing.join(' and ')} yet. '
+                'Your friend sees them during the game, so pick yours '
+                'before you start.',
                 style: GoogleFonts.outfit(
                   fontSize: 13.5,
                   color: AppTheme.mist,
                 ),
               ),
               const SizedBox(height: 18),
-              TextField(
-                controller: controller,
-                autofocus: true,
-                textCapitalization: TextCapitalization.words,
-                maxLength: 24,
-                style: GoogleFonts.outfit(color: Colors.white),
-                decoration: const InputDecoration(
-                  hintText: 'Your name',
-                  counterText: '',
-                  prefixIcon: Icon(Icons.person_rounded),
-                ),
-                onSubmitted: (val) {
-                  final trimmed = val.trim();
-                  if (trimmed.isNotEmpty) {
-                    session.setDisplayName(trimmed);
-                  }
-                  Navigator.of(sheetContext).pop();
-                },
-              ),
-              const SizedBox(height: 18),
               Row(
                 children: [
                   Expanded(
                     child: TextButton(
-                      onPressed: () => Navigator.of(sheetContext).pop(),
+                      onPressed: () {
+                        proceed = true;
+                        Navigator.of(sheetContext).pop();
+                      },
                       child: Text(
-                        'Play as Guest',
+                        'Continue anyway',
                         style: GoogleFonts.outfit(
                           fontWeight: FontWeight.w600,
                           color: AppTheme.mist,
@@ -140,13 +144,11 @@ class RoomLauncher {
                         ),
                       ),
                       onPressed: () {
-                        final trimmed = controller.text.trim();
-                        if (trimmed.isNotEmpty) {
-                          session.setDisplayName(trimmed);
-                        }
+                        proceed = true;
+                        openSettings = true;
                         Navigator.of(sheetContext).pop();
                       },
-                      child: const Text('Continue'),
+                      child: const Text('Set up profile'),
                     ),
                   ),
                 ],
@@ -156,6 +158,10 @@ class RoomLauncher {
         );
       },
     );
+    if (openSettings && context.mounted) {
+      await SettingsSheet.show(context, session);
+    }
+    return proceed;
   }
 
   static Future<void> inviteFriendAndOpen(
@@ -164,6 +170,9 @@ class RoomLauncher {
     String friendId, {
     GameConfig config = GameConfig.defaults,
   }) async {
+    final proceed = await _ensureProfile(context, session);
+    if (!proceed || !context.mounted) return;
+
     await _run(
       context,
       () => session.backend.inviteFriend(friendId: friendId, config: config),
@@ -172,10 +181,16 @@ class RoomLauncher {
   }
 
   static Future<void> open(BuildContext context, String code) async {
-    await Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => RoomPage(roomCode: code)));
-    StatsService.instance.reload();
+    if (_openCode == code) return;
+    _openCode = code;
+    try {
+      await Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => RoomPage(roomCode: code)));
+      StatsService.instance.reload();
+    } finally {
+      if (_openCode == code) _openCode = null;
+    }
   }
 
   static Future<void> _run(
@@ -183,6 +198,8 @@ class RoomLauncher {
     Future<Room> Function() action, {
     required String onError,
   }) async {
+    if (_launching) return;
+    _launching = true;
     final navigator = Navigator.of(context);
     final rootNavigator = Navigator.of(context, rootNavigator: true);
     final messenger = ScaffoldMessenger.of(context);
@@ -212,12 +229,14 @@ class RoomLauncher {
     try {
       final room = await action();
       closeBarrier();
+      _launching = false;
       await navigator.push(
         MaterialPageRoute(builder: (_) => RoomPage(roomCode: room.code)),
       );
       StatsService.instance.reload();
     } catch (error) {
       closeBarrier();
+      _launching = false;
       // Show what actually went wrong. A bare "could not create a room" hides
       // whether it was the network, the session, or undeployed rules.
       final message = error is BackendException

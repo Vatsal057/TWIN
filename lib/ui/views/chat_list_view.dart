@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../core/word_utils.dart';
 import '../../models/game_invite.dart';
 import '../../models/room.dart';
+import '../../services/backend/game_backend.dart';
 import '../../state/app_session.dart';
 import '../app_theme.dart';
 import '../layout.dart';
@@ -147,8 +148,15 @@ class _ConversationsList extends StatelessWidget {
             // One conversation per player: every game with the same opponent
             // feeds a single thread, finished games included, so a chat never
             // vanishes when its game ends.
+            String conversationOf(Room r) {
+              final opp = r.opponentOf(session.localPlayerId);
+              return opp == null
+                  ? ''
+                  : pairConversationId(session.localPlayerId, opp);
+            }
+
             DateTime activityOf(Room r) =>
-                session.unread.lastMessageFor(r.code)?.sentAt ??
+                session.unread.lastMessageFor(conversationOf(r))?.sentAt ??
                 r.updatedAt ??
                 r.createdAt ??
                 DateTime(0);
@@ -164,18 +172,15 @@ class _ConversationsList extends StatelessWidget {
             }
 
             final repRooms = <Room>[];
-            final unreadTotals = <String, int>{};
-            final groupCodes = <String, List<String>>{};
-            for (final roomsForPlayer in byOpponent.values) {
-              var latest = roomsForPlayer.first;
-              var total = 0;
-              for (final r in roomsForPlayer) {
-                total += session.unread.unreadFor(r.code);
+            final unreadByOpponent = <String, int>{};
+            for (final entry in byOpponent.entries) {
+              var latest = entry.value.first;
+              for (final r in entry.value) {
                 if (activityOf(r).isAfter(activityOf(latest))) latest = r;
               }
               repRooms.add(latest);
-              unreadTotals[latest.code] = total;
-              groupCodes[latest.code] = [for (final r in roomsForPlayer) r.code];
+              unreadByOpponent[entry.key] =
+                  session.unread.unreadFor(conversationOf(latest));
             }
             repRooms.sort((a, b) => activityOf(b).compareTo(activityOf(a)));
 
@@ -226,15 +231,21 @@ class _ConversationsList extends StatelessWidget {
                     ),
                     preview: _previewFor(session, repRooms[i]),
                     timestamp: _timestampFor(session, repRooms[i]),
-                    unreadCount: unreadTotals[repRooms[i].code] ?? 0,
+                    unreadCount:
+                        unreadByOpponent[repRooms[i].opponentOf(
+                          session.localPlayerId,
+                        )] ??
+                        0,
                     onTap: () {
-                      for (final code
-                          in groupCodes[repRooms[i].code] ?? const <String>[]) {
-                        session.unread.markRead(code);
-                      }
+                      final oppId = repRooms[i].opponentOf(
+                        session.localPlayerId,
+                      );
+                      if (oppId == null) return;
+                      session.unread.markRead(conversationOf(repRooms[i]));
                       ChatRoomView.open(
                         context,
                         roomCode: repRooms[i].code,
+                        opponentId: oppId,
                         opponentName:
                             _opponentName(repRooms[i], session.localPlayerId),
                         room: repRooms[i],
@@ -260,8 +271,13 @@ String _opponentName(Room room, String localId) {
   return room.playerNames[opponentId] ?? 'Player';
 }
 
+String _conversationOf(AppSession session, Room room) {
+  final opp = room.opponentOf(session.localPlayerId);
+  return opp == null ? '' : pairConversationId(session.localPlayerId, opp);
+}
+
 String _previewFor(AppSession session, Room room) {
-  final last = session.unread.lastMessageFor(room.code);
+  final last = session.unread.lastMessageFor(_conversationOf(session, room));
   if (last == null) return 'No messages yet';
   if (last.system == true) {
     final a = last.wordA == null ? '' : titleCaseWord(last.wordA!);
@@ -277,7 +293,7 @@ String _previewFor(AppSession session, Room room) {
 }
 
 String _timestampFor(AppSession session, Room room) {
-  final at = session.unread.lastMessageFor(room.code)?.sentAt ??
+  final at = session.unread.lastMessageFor(_conversationOf(session, room))?.sentAt ??
       room.updatedAt ??
       room.createdAt;
   if (at == null) return '';
@@ -402,15 +418,19 @@ class _FriendChatTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        name,
-                        style: GoogleFonts.outfit(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
+                      Expanded(
+                        child: Text(
+                          name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.outfit(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                       ),
+                      const SizedBox(width: 8),
                       Text(
                         timestamp,
                         style: const TextStyle(

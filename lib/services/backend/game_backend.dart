@@ -21,6 +21,14 @@ class BackendException implements Exception {
 typedef RoundResolver =
     RoundResolution Function(Room room, String p1Word, String p2Word);
 
+/// The one conversation shared by a pair of players. Chat belongs to the
+/// pair, not to any single room: every game between the same two players,
+/// the in-game chat and the Chats tab all read and write this conversation,
+/// so a thread survives the game it started in. Player ids never contain
+/// an underscore, so the joined form is unambiguous.
+String pairConversationId(String a, String b) =>
+    a.compareTo(b) <= 0 ? '${a}_$b' : '${b}_$a';
+
 /// The sync layer contract.
 ///
 /// [FirestoreBackend] is the real implementation — Firestore itself is the
@@ -103,9 +111,14 @@ abstract class GameBackend {
 
   // ---- chat ----
 
-  Stream<List<ChatMessage>> watchMessages(String code);
+  /// The pair conversation's messages, oldest first. [conversationId] comes
+  /// from [pairConversationId]; it is deliberately not a room code.
+  Stream<List<ChatMessage>> watchMessages(String conversationId);
 
-  Future<void> sendMessage({required String code, required String text});
+  Future<void> sendMessage({
+    required String conversationId,
+    required String text,
+  });
 
   // ---- friends ----
 

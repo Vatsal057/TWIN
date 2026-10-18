@@ -53,12 +53,17 @@ class ReferenceRoundHeader extends StatelessWidget {
                 avatarId: localAvatarId,
               ),
               const SizedBox(height: 10),
-              Text(
-                localName,
-                style: GoogleFonts.outfit(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 130),
+                child: Text(
+                  localName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.outfit(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
                 ),
               ),
               const SizedBox(height: 4),
@@ -114,24 +119,29 @@ class ReferenceRoundHeader extends StatelessWidget {
                 avatarId: opponentAvatarId,
               ),
               const SizedBox(height: 10),
-              RichText(
-                text: TextSpan(
-                  style: GoogleFonts.outfit(fontSize: 16, color: Colors.white),
-                  children: [
-                    TextSpan(
-                      text: opponentName,
-                      style: const TextStyle(fontWeight: FontWeight.w800),
-                    ),
-                    if (opponentSubmitted)
-                      const TextSpan(
-                        text: ' · locked in',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.mist,
-                        ),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 130),
+                child: RichText(
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  text: TextSpan(
+                    style: GoogleFonts.outfit(fontSize: 16, color: Colors.white),
+                    children: [
+                      TextSpan(
+                        text: opponentName,
+                        style: const TextStyle(fontWeight: FontWeight.w800),
                       ),
-                  ],
+                      if (opponentSubmitted)
+                        const TextSpan(
+                          text: ' · locked in',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.mist,
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 4),

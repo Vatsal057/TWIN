@@ -224,7 +224,6 @@ class LocalBackend implements GameBackend {
     );
     _rooms[code] = room;
     _submissions[code] = {};
-    _messages[code] = [];
     _emitMyRooms();
     _persistRooms();
 
@@ -255,6 +254,11 @@ class LocalBackend implements GameBackend {
     }
     if (existing.isFull) {
       throw const BackendException('That room already has two players.');
+    }
+    if (existing.status == RoomStatus.finished) {
+      throw const BackendException(
+        'That game has already finished. Ask for a new code.',
+      );
     }
     final joined = existing.copyWith(
       players: [...existing.players, _uid],
@@ -376,38 +380,51 @@ class LocalBackend implements GameBackend {
   // ----------------------------------------------------------------- chat
 
   @override
-  Stream<List<ChatMessage>> watchMessages(String code) {
+  Stream<List<ChatMessage>> watchMessages(String conversationId) {
     final controller = _messageStreams.putIfAbsent(
-      code,
+      conversationId,
       () => StreamController<List<ChatMessage>>.broadcast(),
     );
-    _schedule(Duration.zero, () => controller.add([...?_messages[code]]));
+    _schedule(
+      Duration.zero,
+      () => controller.add([...?_messages[conversationId]]),
+    );
     return controller.stream;
   }
 
   @override
-  Future<void> sendMessage({required String code, required String text}) async {
+  Future<void> sendMessage({
+    required String conversationId,
+    required String text,
+  }) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;
-    _appendMessage(code, senderId: _uid, text: trimmed);
+    _appendMessage(conversationId, senderId: _uid, text: trimmed);
 
-    final room = _rooms[code];
-    final opponentId = room?.players.firstWhere((p) => p != _uid, orElse: () => '');
-    if (opponentId != null && opponentId.isNotEmpty) {
+    // The other participant in this conversation stands in and replies,
+    // like every opponent in the local backend.
+    final opponentId = conversationId
+        .split('_')
+        .firstWhere((p) => p != _uid, orElse: () => '');
+    if (opponentId.isNotEmpty) {
       _schedule(
         Duration(milliseconds: 1000 + _random.nextInt(800)),
-        () => _appendMessage(code, senderId: opponentId, text: _botChatReply(trimmed)),
+        () => _appendMessage(
+          conversationId,
+          senderId: opponentId,
+          text: _botChatReply(trimmed),
+        ),
       );
     }
   }
 
 
   void _appendMessage(
-    String code, {
+    String conversationId, {
     required String senderId,
     required String text,
   }) {
-    final list = _messages.putIfAbsent(code, () => []);
+    final list = _messages.putIfAbsent(conversationId, () => []);
     list.add(
       ChatMessage(
         id: 'm${list.length}-${DateTime.now().microsecondsSinceEpoch}',
@@ -416,7 +433,7 @@ class LocalBackend implements GameBackend {
         sentAt: DateTime.now(),
       ),
     );
-    _messageStreams[code]?.add([...list]);
+    _messageStreams[conversationId]?.add([...list]);
   }
 
   // -------------------------------------------------------------- friends
@@ -448,7 +465,11 @@ class LocalBackend implements GameBackend {
       id: friendId,
       name: friendName,
       lastPlayedAt: DateTime.now(),
-      gamesPlayed: (existing?.gamesPlayed ?? 0) + 1,
+      gamesPlayed: existing?.gamesPlayed ?? 0,
+      totalRounds: existing?.totalRounds ?? 0,
+      bestSyncRounds: existing?.bestSyncRounds,
+      bestSyncWord: existing?.bestSyncWord,
+      memoryBank: existing?.memoryBank ?? const [],
     );
     await _persistFriends();
     _emitFriends();
@@ -559,7 +580,11 @@ class LocalBackend implements GameBackend {
     );
     _schedule(
       const Duration(milliseconds: 900),
-      () => _appendMessage(code, senderId: botId, text: 'Ready when you are.'),
+      () => _appendMessage(
+        pairConversationId(_uid, botId),
+        senderId: botId,
+        text: 'Ready when you are.',
+      ),
     );
   }
 
@@ -978,6 +1003,27 @@ class LocalBackend implements GameBackend {
       createdAt: DateTime.now().subtract(const Duration(hours: 50)),
       updatedAt: DateTime.now().subtract(const Duration(hours: 49)),
     );
+
+    // Chat belongs to the player pair, not the room: fold every seeded
+    // room's messages into that pair's single conversation, oldest first,
+    // so the demo threads match the real model.
+    for (final room in _rooms.values) {
+      final other = room.players.firstWhere(
+        (p) => p != _uid,
+        orElse: () => '',
+      );
+      if (other.isEmpty) continue;
+      final seeded = _messages.remove(room.code);
+      if (seeded == null || seeded.isEmpty) continue;
+      final conversation = _messages.putIfAbsent(
+        pairConversationId(_uid, other),
+        () => [],
+      );
+      conversation.addAll(seeded);
+      conversation.sort(
+        (a, b) => (a.sentAt ?? DateTime(0)).compareTo(b.sentAt ?? DateTime(0)),
+      );
+    }
   }
 
 

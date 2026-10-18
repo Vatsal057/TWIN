@@ -1,5 +1,6 @@
-/// A chat message scoped to a room. Supports regular player text as well as
-/// system round outcome announcements (matching reference Screenshot 3).
+/// A chat message in a player pair's conversation. Supports regular player
+/// text as well as system round outcome announcements (matching reference
+/// Screenshot 3).
 class ChatMessage {
   const ChatMessage({
     required this.id,

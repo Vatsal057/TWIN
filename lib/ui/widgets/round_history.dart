@@ -70,6 +70,8 @@ class _RoundRow extends StatelessWidget {
             width: 72,
             child: Text(
               'Round ${round.index}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: GoogleFonts.outfit(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
@@ -90,6 +92,8 @@ class _RoundRow extends StatelessWidget {
               alignment: Alignment.center,
               child: Text(
                 titleCaseWord(round.p1Word).toUpperCase(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.outfit(
                   fontSize: 14,
                   fontWeight: FontWeight.w800,
@@ -124,6 +128,8 @@ class _RoundRow extends StatelessWidget {
               alignment: Alignment.center,
               child: Text(
                 titleCaseWord(round.p2Word).toUpperCase(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.outfit(
                   fontSize: 14,
                   fontWeight: FontWeight.w800,

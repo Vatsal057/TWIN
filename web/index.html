@@ -7,7 +7,7 @@
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="description" content="A two-player word convergence game. Take turns naming words, aiming for the middle of the last pair, until you both say the same word.">
-  <meta name="theme-color" content="#14120F">
+  <meta name="theme-color" content="#0B0B22">
 
   <!-- Link previews, so a shared room link looks like something in chat apps -->
   <meta property="og:title" content="TWIN">
@@ -26,12 +26,12 @@
   <link rel="manifest" href="manifest.json">
 
   <style>
-    /* Matches AppTheme.ink so the page never flashes white before Flutter
-       paints, and covers the overscroll area on mobile browsers. */
+    /* Matches AppTheme.navy950 so the page never flashes white before
+       Flutter paints, and covers the overscroll area on mobile browsers. */
     html, body {
       margin: 0;
       padding: 0;
-      background-color: #14120F;
+      background-color: #0B0B22;
       overscroll-behavior: none;
     }
     #boot {
@@ -43,12 +43,12 @@
       justify-content: center;
       gap: 18px;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      color: #F3EADA;
+      color: #FFFFFF;
       transition: opacity 0.3s ease;
     }
     #boot .mark {
       font-size: 15px;
-      font-weight: 300;
+      font-weight: 800;
       letter-spacing: 6px;
       /* letter-spacing trails the last glyph, so a 4-letter mark would sit
          half a space left of the bar below it. Matching padding re-centres it. */
@@ -57,19 +57,19 @@
     #boot .note {
       font-size: 11px;
       letter-spacing: 1.4px;
-      color: rgba(243, 234, 218, 0.45);
+      color: #8D92AA;
     }
     #boot .bar {
       width: 120px;
       height: 2px;
-      background: rgba(243, 234, 218, 0.14);
+      background: rgba(255, 255, 255, 0.12);
       overflow: hidden;
     }
     #boot .bar span {
       display: block;
       width: 40%;
       height: 100%;
-      background: #E0A93B;
+      background: #C3F959;
       animation: slide 1.2s ease-in-out infinite;
     }
     @keyframes slide {
@@ -79,12 +79,12 @@
   </style>
 </head>
 <body>
-  <!-- Shown until Flutter takes over. The first visit downloads the bundled
-       word-vector table, so a plain white screen would look broken. -->
+  <!-- Shown until Flutter takes over, so the first paint is the app's own
+       navy instead of a plain white screen. -->
   <div id="boot">
     <div class="mark">TWIN</div>
     <div class="bar"><span></span></div>
-    <div class="note">loading word vectors</div>
+    <div class="note">loading</div>
   </div>
 
   <script>

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../app_theme.dart';
 import '../../services/room_code.dart';
-import 'bouncy_tap.dart';
 
 /// Dedicated Join Room modal sheet:
 /// - 5 large letter boxes matching RoomCode.length
@@ -67,9 +66,10 @@ class _JoinSheetState extends State<JoinSheet> {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     final code = _controller.text;
 
-    return Padding(
-      padding: EdgeInsets.fromLTRB(24, 20, 24, 24 + bottomInset),
-      child: Column(
+    return SingleChildScrollView(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(24, 20, 24, 24 + bottomInset),
+        child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -156,31 +156,8 @@ class _JoinSheetState extends State<JoinSheet> {
             ),
           ),
 
-          const SizedBox(height: 28),
-          BouncyTap(
-            onTap: RoomCode.isValid(code)
-                ? () => Navigator.of(context).pop(code)
-                : null,
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 18),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: RoomCode.isValid(code)
-                    ? AppTheme.lime
-                    : AppTheme.lime.withValues(alpha: 0.35),
-                borderRadius: BorderRadius.circular(22),
-              ),
-              child: Text(
-                'Enter Match',
-                style: GoogleFonts.outfit(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w900,
-                  color: AppTheme.navy950,
-                ),
-              ),
-            ),
-          ),
         ],
+        ),
       ),
     );
   }

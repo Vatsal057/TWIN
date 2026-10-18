@@ -3,8 +3,8 @@ rules_version = '2';
 // TWIN security rules.
 //
 // Two guarantees matter here:
-//   1. Only the two players in a room can read or write that room and its
-//      messages.
+//   1. Only the two players in a room can read or write that room, and only
+//      the two participants of a conversation can read or write its messages.
 //   2. A word stays private until BOTH players have committed for the round.
 //      Without that, either client could peek at the opponent's word before
 //      submitting, which is the whole game.
@@ -102,18 +102,26 @@ service cloud.firestore {
         allow update, delete: if false;
       }
 
-      match /messages/{messageId} {
-        allow read: if isPlayerIn(code);
+    }
 
-        allow create: if isPlayerIn(code)
-          && request.resource.data.senderId == request.auth.uid
-          && request.resource.data.text is string
-          && request.resource.data.text.size() > 0
-          && request.resource.data.text.size() <= 500;
-
-        // Plain stream: no edits, no deletes, nothing to mark as read.
-        allow update, delete: if false;
+    // One conversation per player pair. The document id is the two uids
+    // joined by an underscore (see pairConversationId in the app), so
+    // membership is read straight off the id: no lookup doc needed.
+    match /conversations/{conversationId}/messages/{messageId} {
+      function isParticipant() {
+        return signedIn() && request.auth.uid in conversationId.split('_');
       }
+
+      allow read: if isParticipant();
+
+      allow create: if isParticipant()
+        && request.resource.data.senderId == request.auth.uid
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 500;
+
+      // Plain stream: no edits, no deletes, nothing to mark as read.
+      allow update, delete: if false;
     }
 
     match /users/{userId} {
